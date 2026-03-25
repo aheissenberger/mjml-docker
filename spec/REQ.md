@@ -59,6 +59,7 @@ runtime environment (including `API_KEY`) and host port mapping so the container
 started and monitored with standard `docker compose` workflows.
 A sample `.env.example` must document required and optional runtime variables.
 Compose usage should load `.env` automatically and document development vs production-style presets.
+The healthcheck probe must align with the configured in-container `PORT` so non-default ports remain healthy.
 
 ### FR-008 Request-Scoped MJML Options
 
