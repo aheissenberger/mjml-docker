@@ -35,7 +35,15 @@ prevent timing attacks (`node:crypto` `timingSafeEqual`).
 
 ### FR-006 Dockerfile
 
-The repository must ship a multi-stage `Dockerfile` based on `node:25-bookworm-slim`.
-The builder stage installs dependencies; the runtime stage copies only production files,
-runs as the non-root `node` user, sets `NODE_ENV=production`, and exposes port 3000.
-A `.dockerignore` file excludes non-runtime artefacts (`.git`, `spec/`, `test/`, etc.).
+The repository must ship a multi-stage `Dockerfile` based on `node:25-trixie-slim`.
+The builder stage installs dependencies (pnpm installed via `npm install -g pnpm@10`);
+the runtime stage copies only production files, runs as the non-root `node` user, sets
+`NODE_ENV=production`, and exposes port 3000. A `.dockerignore` file excludes
+non-runtime artefacts (`.git`, `spec/`, `test/`, etc.).
+
+### FR-007 Docker Compose Runtime
+
+The repository must include a Compose definition (`compose.yaml` preferred) to run the API
+service with a configured health check and restart policy. The service must provide required
+runtime environment (including `API_KEY`) and host port mapping so the container can be
+started and monitored with standard `docker compose` workflows.

@@ -25,11 +25,13 @@ Client → HTTP → node25-ts-api-server (port 3000)
 - Static API key authentication via Bearer token — `API_KEY` env var (FR-005, Proposed)
 - MJML npm library for email template rendering — no external HTTP calls (FR-004, Proposed)
 
-## Planned Topology (post FR-006)
+## Container Topology (FR-006, FR-007)
 
 ```
-Client → HTTP → mjml-docker container (node:25-bookworm-slim, port 3000)
+Client → HTTP → mjml-docker container (node:25-trixie-slim, port 3000)
 ```
+
+Orchestrated via `compose.yaml` with health check and `restart: unless-stopped` policy.
 
 ## Ownership
 

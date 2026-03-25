@@ -1,22 +1,23 @@
 # Builder stage: installs all dependencies including devDependencies
-FROM node:25-bookworm-slim AS builder
+FROM node:25-trixie-slim AS builder
 
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml ./
 
-RUN corepack enable && pnpm install --frozen-lockfile
+# Node 25 slim images may not ship corepack; install pnpm explicitly.
+RUN npm install -g pnpm@10 && pnpm install --frozen-lockfile
 
 COPY . .
 
 # Runtime stage: installs production dependencies only and runs src directly
-FROM node:25-bookworm-slim
+FROM node:25-trixie-slim
 
 RUN mkdir -p /app && chown node:node /app
 
 WORKDIR /app
 
-RUN corepack enable
+RUN npm install -g pnpm@10
 
 COPY --from=builder /app/package.json /app/pnpm-lock.yaml ./
 

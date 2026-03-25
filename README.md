@@ -1,6 +1,8 @@
 # MJML Render API
 
-A minimal, self-hosted REST API that converts [MJML](https://mjml.io) email templates to responsive HTML. Built on Node.js 25+ with native TypeScript support — no build step required.
+A minimal, self-hosted REST API that converts [MJML](https://mjml.io)
+email templates to responsive HTML. Built on Node.js 25+ with
+native TypeScript support — no build step required.
 
 ## Requirements
 
@@ -35,6 +37,43 @@ docker build -t mjml-api .
 docker run -p 3000:3000 -e API_KEY="your-secret-api-key" mjml-api
 ```
 
+### Docker Compose
+
+```bash
+API_KEY="your-secret-api-key" docker compose up --build
+```
+
+Check health status:
+
+```bash
+docker compose ps
+```
+
+Expected result: the `api` service status becomes `healthy`.
+
+Stop and remove containers:
+
+```bash
+docker compose down
+```
+
+Troubleshooting:
+
+- Missing `API_KEY`:
+
+  ```bash
+  API_KEY="your-secret-api-key" docker compose up --build
+  ```
+
+- Port `3000` already in use:
+
+  ```bash
+  lsof -nP -iTCP:3000 -sTCP:LISTEN
+  ```
+
+  Stop the process using port `3000`, or change the mapping in
+  `compose.yaml` from `3000:3000` to `3001:3000` and restart Compose.
+
 ## Quick usage example
 
 ```bash
@@ -53,9 +92,11 @@ curl -X POST http://localhost:3000/v1/render \
 }
 ```
 
-All endpoints except `GET /health` require the `Authorization: Bearer <API_KEY>` header.
+All endpoints except `GET /health` require
+`Authorization: Bearer <API_KEY>`.
 
-See [docs/api.md](docs/api.md) for the full API reference including all request/response shapes and error codes.
+See [docs/api.md](docs/api.md) for the full API reference,
+including all request/response shapes and error codes.
 
 ## Development
 

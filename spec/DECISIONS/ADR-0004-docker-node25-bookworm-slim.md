@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted (amended 2026-03-25 — see Amendment below)
 
 ## Date
 
@@ -41,6 +41,13 @@ The runtime stage runs as the non-root `node` user (`USER node`) and sets
 - `node:25-bookworm-slim` is an official Docker Hub image; updates are tracked upstream
 - The `pnpm-lock.yaml` lockfile is used in both stages for reproducible installs
 - If a future distroless Node 25 image is released, migration is straightforward
+
+## Amendment — 2026-03-25
+
+Base image changed from `node:25-bookworm-slim` to `node:25-trixie-slim` (Debian 13).
+`node:25-trixie-slim` does not ship `corepack` by default, so both Dockerfile stages
+now install pnpm 10 explicitly via `npm install -g pnpm@10` instead of `corepack enable`.
+The multi-stage structure and rationale are otherwise unchanged.
 
 ## Related
 
