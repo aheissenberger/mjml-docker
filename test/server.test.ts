@@ -1,4 +1,4 @@
-import { test, before, after } from "node:test";
+import { test } from "node:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import type { Server } from "node:http";
@@ -172,6 +172,92 @@ void test("POST /v1/render with MJML that has warnings → 200 + errors populate
   }
 });
 
+void test("POST /v1/render with options.fonts → 200 + custom font import", async () => {
+  const { server, baseUrl } = await startServer();
+  const mjmlWithCustomFont = `<mjml>
+  <mj-body>
+    <mj-section>
+      <mj-column>
+        <mj-text font-family="Acme">Hello</mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>`;
+  try {
+    const res = await fetch(`${baseUrl}/v1/render`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        mjml: mjmlWithCustomFont,
+        options: { fonts: { Acme: "https://example.com/acme.css" } },
+      }),
+    });
+    assert.equal(res.status, 200);
+    const data = (await res.json()) as { html: string; errors: unknown[] };
+    assert.ok(data.html.includes("https://example.com/acme.css"));
+    assert.ok(Array.isArray(data.errors));
+  } finally {
+    await stopServer(server);
+  }
+});
+
+void test("POST /v1/render with options.keepComments boolean → 200", async () => {
+  const { server, baseUrl } = await startServer();
+  try {
+    const res = await fetch(`${baseUrl}/v1/render`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        mjml: VALID_MJML,
+        options: { keepComments: false },
+      }),
+    });
+    assert.equal(res.status, 200);
+    const data = (await res.json()) as { html: string; errors: unknown[] };
+    assert.ok(typeof data.html === "string" && data.html.length > 0);
+  } finally {
+    await stopServer(server);
+  }
+});
+
+void test("POST /v1/render with options.minify=true → 200 + shorter output", async () => {
+  const { server, baseUrl } = await startServer();
+  const formattedMjml = `<mjml>
+  <mj-body>
+    <mj-section>
+      <mj-column>
+        <mj-text>
+          Hello world
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>`;
+  try {
+    const [normalRes, minifiedRes] = await Promise.all([
+      fetch(`${baseUrl}/v1/render`, {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({ mjml: formattedMjml }),
+      }),
+      fetch(`${baseUrl}/v1/render`, {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({ mjml: formattedMjml, options: { minify: true } }),
+      }),
+    ]);
+
+    assert.equal(normalRes.status, 200);
+    assert.equal(minifiedRes.status, 200);
+
+    const normalData = (await normalRes.json()) as { html: string };
+    const minifiedData = (await minifiedRes.json()) as { html: string };
+    assert.ok(minifiedData.html.length < normalData.html.length);
+  } finally {
+    await stopServer(server);
+  }
+});
+
 void test("POST /v1/render missing mjml field → 422", async () => {
   const { server, baseUrl } = await startServer();
   try {
@@ -199,6 +285,54 @@ void test("POST /v1/render with non-string mjml → 422", async () => {
     assert.equal(res.status, 422);
     const data = (await res.json()) as { message: string };
     assert.ok(typeof data.message === "string" && data.message.length > 0);
+  } finally {
+    await stopServer(server);
+  }
+});
+
+void test("POST /v1/render with non-object options → 422", async () => {
+  const { server, baseUrl } = await startServer();
+  try {
+    const res = await fetch(`${baseUrl}/v1/render`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({ mjml: VALID_MJML, options: "bad" }),
+    });
+    assert.equal(res.status, 422);
+    const data = (await res.json()) as { message: string };
+    assert.ok(data.message.includes("options"));
+  } finally {
+    await stopServer(server);
+  }
+});
+
+void test("POST /v1/render with unknown options key → 422", async () => {
+  const { server, baseUrl } = await startServer();
+  try {
+    const res = await fetch(`${baseUrl}/v1/render`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({ mjml: VALID_MJML, options: { notAllowed: true } }),
+    });
+    assert.equal(res.status, 422);
+    const data = (await res.json()) as { message: string };
+    assert.ok(data.message.includes("unknown option"));
+  } finally {
+    await stopServer(server);
+  }
+});
+
+void test("POST /v1/render with non-boolean options.minify → 422", async () => {
+  const { server, baseUrl } = await startServer();
+  try {
+    const res = await fetch(`${baseUrl}/v1/render`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({ mjml: VALID_MJML, options: { minify: "yes" } }),
+    });
+    assert.equal(res.status, 422);
+    const data = (await res.json()) as { message: string };
+    assert.ok(data.message.includes("options.minify"));
   } finally {
     await stopServer(server);
   }

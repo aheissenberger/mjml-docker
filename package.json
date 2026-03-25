@@ -17,9 +17,11 @@
     "spec:validate": "node scripts/spec-ledger/validate-req-files.ts && node scripts/spec-ledger/validate-req-index.ts && node scripts/spec-ledger/validate-trace-events.ts"
   },
   "dependencies": {
+    "html-minifier-terser": "^7.2.0",
     "mjml": "^4.18.0"
   },
   "devDependencies": {
+    "@types/html-minifier-terser": "^7.0.2",
     "@types/mjml": "^4.7.4",
     "@types/node": "^25.5.0",
     "oxfmt": "^0.42.0",

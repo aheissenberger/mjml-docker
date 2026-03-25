@@ -94,15 +94,31 @@ Content-Type: application/json
 
 **Request body**
 
-| Field  | Type   | Required | Description                 |
-| ------ | ------ | -------- | --------------------------- |
-| `mjml` | string | Yes      | Valid MJML markup to render |
+| Field     | Type   | Required | Description                                  |
+| --------- | ------ | -------- | -------------------------------------------- |
+| `mjml`    | string | Yes      | Valid MJML markup to render                  |
+| `options` | object | No       | Optional render options (allowlisted subset) |
 
 ```json
 {
-  "mjml": "<mjml><mj-body>...</mj-body></mjml>"
+  "mjml": "<mjml><mj-body>...</mj-body></mjml>",
+  "options": {
+    "fonts": {
+      "Acme": "https://example.com/acme.css"
+    },
+    "keepComments": false,
+    "minify": true
+  }
 }
 ```
+
+`options` allowlist:
+
+| Field          | Type                    | Description                                                          |
+| -------------- | ----------------------- | -------------------------------------------------------------------- |
+| `fonts`        | `Record<string,string>` | Custom font imports passed to MJML                                   |
+| `keepComments` | boolean                 | Forwards MJML's `keepComments` flag                                  |
+| `minify`       | boolean                 | Applies post-render HTML/CSS minification using a safe server config |
 
 **Response — 200 OK**
 
@@ -130,12 +146,13 @@ A 200 response is returned even when `errors` is non-empty. Errors represent MJM
 
 **Error responses**
 
-| Status | Body                                                                   | Condition                                 |
-| ------ | ---------------------------------------------------------------------- | ----------------------------------------- |
-| 401    | `{ "message": "Unauthorized" }`                                        | Missing or invalid `Authorization` header |
-| 422    | `{ "message": "Failed to read request body" }`                         | Request body could not be read            |
-| 422    | `{ "message": "Invalid JSON body" }`                                   | Body is not valid JSON                    |
-| 422    | `{ "message": "Missing or invalid \"mjml\" field: must be a string" }` | `mjml` field is absent or not a string    |
+| Status | Body                                                                   | Condition                                              |
+| ------ | ---------------------------------------------------------------------- | ------------------------------------------------------ |
+| 401    | `{ "message": "Unauthorized" }`                                        | Missing or invalid `Authorization` header              |
+| 422    | `{ "message": "Failed to read request body" }`                         | Request body could not be read                         |
+| 422    | `{ "message": "Invalid JSON body" }`                                   | Body is not valid JSON                                 |
+| 422    | `{ "message": "Missing or invalid \"mjml\" field: must be a string" }` | `mjml` field is absent or not a string                 |
+| 422    | `{ "message": "Invalid \"options\" field: ..." }`                      | `options` contains unknown keys or invalid value types |
 
 **Examples**
 
@@ -155,6 +172,20 @@ curl -X POST http://localhost:3000/v1/render \
   "html": "<!doctype html><html xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\">...</html>",
   "errors": []
 }
+```
+
+Template with minified output:
+
+```bash
+curl -X POST http://localhost:3000/v1/render \
+  -H "Authorization: Bearer your-secret-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "mjml": "<mjml><mj-body><mj-section><mj-column><mj-text>Hello!</mj-text></mj-column></mj-section></mj-body></mjml>",
+    "options": {
+      "minify": true
+    }
+  }'
 ```
 
 Template with a validation warning (unknown attribute):

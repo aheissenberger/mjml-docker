@@ -47,3 +47,11 @@ The repository must include a Compose definition (`compose.yaml` preferred) to r
 service with a configured health check and restart policy. The service must provide required
 runtime environment (including `API_KEY`) and host port mapping so the container can be
 started and monitored with standard `docker compose` workflows.
+
+### FR-008 Request-Scoped MJML Options
+
+The render endpoint may accept an optional `options` object alongside `mjml` so callers can
+request a constrained subset of MJML render behaviour per API call. Only serializable,
+request-local options are in scope; filesystem-backed, config-backed, function-valued,
+deprecated, undocumented, or contract-breaking MJML options remain disallowed. A request-level
+`minify` boolean may trigger safe post-processing of rendered HTML output.
