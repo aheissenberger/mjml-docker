@@ -2,7 +2,7 @@
 
 | Requirement | Implementation                                    | Verification          | Notes                                                                                    |
 | ----------- | ------------------------------------------------- | --------------------- | ---------------------------------------------------------------------------------------- |
-| FR-001      | src/server.ts, src/index.ts                       | pnpm test, smoke test | node:http built-in only; startup validates bounded PORT/runtime tuning env               |
+| FR-001      | src/server.ts, src/index.ts                       | pnpm test, smoke test | node:http built-in only; startup validates bounded PORT/runtime tuning env + graceful signal shutdown |
 | FR-002      | src/server.ts                                     | test/server.test.ts   |                                                                                          |
 | FR-003      | src/server.ts                                     | —                     | No automated test yet                                                                    |
 | FR-004      | src/server.ts, src/render-worker.ts, src/index.ts | test/server.test.ts   | POST /v1/render with body/time/rate limits + cancellation-aware worker-pool backpressure |

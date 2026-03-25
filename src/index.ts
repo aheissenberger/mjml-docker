@@ -1,11 +1,13 @@
 import { createApiServer } from "./server.ts";
 import { availableParallelism } from "node:os";
+import type { Server } from "node:http";
 
 const MAX_RENDER_WORKERS = Math.max(1, availableParallelism());
 const MAX_RENDER_QUEUE_SIZE = 10_000;
 const MAX_RENDER_TIMEOUT_MS = 300_000;
 const MAX_RATE_LIMIT_WINDOW_MS = 3_600_000;
 const MAX_RATE_LIMIT_MAX_REQUESTS = 1_000_000;
+const SHUTDOWN_GRACE_MS = 8_000;
 
 function resolvePort(value: string | undefined): number {
   if (value === undefined) return 3000;
@@ -80,6 +82,44 @@ const server = createApiServer(apiKey, {
     MAX_RATE_LIMIT_WINDOW_MS,
   ),
 });
+
+function setupGracefulShutdown(httpServer: Server) {
+  let shuttingDown = false;
+
+  const shutdown = (signal: "SIGINT" | "SIGTERM") => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+
+    process.stderr.write(`Received ${signal}; starting graceful shutdown.\n`);
+
+    const forceExitTimer = setTimeout(() => {
+      process.stderr.write(
+        `Graceful shutdown exceeded ${SHUTDOWN_GRACE_MS}ms; forcing connection close.\n`,
+      );
+      httpServer.closeAllConnections?.();
+      process.exit(1);
+    }, SHUTDOWN_GRACE_MS);
+    forceExitTimer.unref();
+
+    httpServer.close((error) => {
+      clearTimeout(forceExitTimer);
+      if (error) {
+        process.stderr.write(`Shutdown error: ${error.message}\n`);
+        process.exit(1);
+      }
+      process.stderr.write("HTTP server stopped cleanly.\n");
+      process.exit(0);
+    });
+
+    // Immediately drain keep-alive sockets so close callback resolves faster.
+    httpServer.closeIdleConnections?.();
+  };
+
+  process.once("SIGTERM", () => shutdown("SIGTERM"));
+  process.once("SIGINT", () => shutdown("SIGINT"));
+}
+
+setupGracefulShutdown(server);
 
 server.listen(port, () => {
   console.log(`Server listening on http://localhost:${port}`);

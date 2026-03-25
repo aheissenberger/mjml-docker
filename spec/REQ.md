@@ -12,6 +12,7 @@ via `PORT` environment variable) and respond to HTTP requests with JSON content.
 Invalid port configuration must fail fast at startup.
 Optional worker tuning environment variables must be validated at startup.
 Runtime tuning values use bounded validation ranges to prevent unsafe configuration.
+Signal-driven shutdown should drain idle connections and terminate within a bounded grace window.
 
 ### FR-002 Health Check Endpoint
 
