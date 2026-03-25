@@ -268,12 +268,12 @@ curl -X POST http://localhost:3000/v1/render \
 
 ## Environment variables
 
-| Variable            | Required | Default                                | Description                                                                                   |
-| ------------------- | -------- | -------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `API_KEY`           | Yes      | —                                      | Bearer token for all authenticated endpoints. The server exits at startup if this is not set. |
-| `PORT`              | No       | `3000`                                 | TCP port the server listens on                                                                |
-| `RENDER_WORKERS`    | No       | Auto (`min(4, cpu-1)` clamped to >= 1) | Number of worker threads used for MJML render/minify processing                               |
-| `RENDER_QUEUE_SIZE` | No       | `64`                                   | Maximum queued render requests waiting for an available worker before HTTP 503 backpressure   |
-| `RENDER_TIMEOUT_MS` | No       | `20000`                                | Per-request render timeout in milliseconds                                                    |
-| `RATE_LIMIT_MAX_REQUESTS` | No | `120`                                 | Maximum requests per client source within the configured rate-limit window                    |
-| `RATE_LIMIT_WINDOW_MS` | No    | `60000`                                | Rate-limit window duration in milliseconds                                                    |
+| Variable                  | Required | Default                                | Description                                                                                   |
+| ------------------------- | -------- | -------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `API_KEY`                 | Yes      | —                                      | Bearer token for all authenticated endpoints. The server exits at startup if this is not set. |
+| `PORT`                    | No       | `3000`                                 | TCP port the server listens on                                                                |
+| `RENDER_WORKERS`          | No       | Auto (`min(4, cpu-1)` clamped to >= 1) | Number of worker threads used for MJML render/minify processing                               |
+| `RENDER_QUEUE_SIZE`       | No       | `64`                                   | Maximum queued render requests waiting for an available worker before HTTP 503 backpressure   |
+| `RENDER_TIMEOUT_MS`       | No       | `20000`                                | Per-request render timeout in milliseconds                                                    |
+| `RATE_LIMIT_MAX_REQUESTS` | No       | `120`                                  | Maximum requests per client source within the configured rate-limit window                    |
+| `RATE_LIMIT_WINDOW_MS`    | No       | `60000`                                | Rate-limit window duration in milliseconds                                                    |
