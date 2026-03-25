@@ -1,0 +1,10 @@
+.git
+.github
+node_modules
+spec/
+scripts/
+test/
+*.md
+.vscode/
+.oxfmt.json
+.oxlintrc.json
