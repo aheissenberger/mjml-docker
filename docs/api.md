@@ -120,6 +120,14 @@ Content-Type: application/json
 | `keepComments` | boolean                 | Forwards MJML's `keepComments` flag                                  |
 | `minify`       | boolean                 | Applies post-render HTML/CSS minification using a safe server config |
 
+Additional validation and limits:
+
+- `options.fonts` values must be valid absolute `https://` URLs
+- Request body size is capped at 1 MiB
+- Request body read timeout is enforced to protect against slow clients
+- Render requests are processed through a bounded worker queue; overload returns HTTP 503
+- Request rate limiting is enforced per client source and returns HTTP 429 when exceeded
+
 **Response — 200 OK**
 
 | Field    | Type   | Description                                             |
@@ -150,9 +158,14 @@ A 200 response is returned even when `errors` is non-empty. Errors represent MJM
 | ------ | ---------------------------------------------------------------------- | ------------------------------------------------------ |
 | 401    | `{ "message": "Unauthorized" }`                                        | Missing or invalid `Authorization` header              |
 | 422    | `{ "message": "Failed to read request body" }`                         | Request body could not be read                         |
+| 408    | `{ "message": "Request body read timed out" }`                         | Request body was not fully received in time            |
+| 413    | `{ "message": "Request body is too large (max 1048576 bytes)" }`       | Request body exceeded maximum allowed size             |
 | 422    | `{ "message": "Invalid JSON body" }`                                   | Body is not valid JSON                                 |
 | 422    | `{ "message": "Missing or invalid \"mjml\" field: must be a string" }` | `mjml` field is absent or not a string                 |
 | 422    | `{ "message": "Invalid \"options\" field: ..." }`                      | `options` contains unknown keys or invalid value types |
+| 429    | `{ "message": "Too many requests; please retry later" }`               | Per-client request rate exceeded                       |
+| 503    | `{ "message": "Render queue is full; please retry later" }`            | Render worker queue saturation                         |
+| 500    | `{ "message": "..." }`                                                 | Internal rendering/minification failure                |
 
 **Examples**
 
@@ -244,13 +257,23 @@ curl -X POST http://localhost:3000/v1/render \
 | 200    | Success (HTML rendered; check `errors` for warnings) |
 | 401    | Unauthorized — missing or invalid bearer token       |
 | 404    | Route not found                                      |
+| 408    | Request timeout while reading body                   |
+| 413    | Request entity too large                             |
 | 422    | Unprocessable request body                           |
+| 429    | Too many requests (rate limit exceeded)              |
+| 503    | Service unavailable (render queue backpressure)      |
+| 500    | Internal server error                                |
 
 ---
 
 ## Environment variables
 
-| Variable  | Required | Default | Description                                                                                   |
-| --------- | -------- | ------- | --------------------------------------------------------------------------------------------- |
-| `API_KEY` | Yes      | —       | Bearer token for all authenticated endpoints. The server exits at startup if this is not set. |
-| `PORT`    | No       | `3000`  | TCP port the server listens on                                                                |
+| Variable            | Required | Default                                | Description                                                                                   |
+| ------------------- | -------- | -------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `API_KEY`           | Yes      | —                                      | Bearer token for all authenticated endpoints. The server exits at startup if this is not set. |
+| `PORT`              | No       | `3000`                                 | TCP port the server listens on                                                                |
+| `RENDER_WORKERS`    | No       | Auto (`min(4, cpu-1)` clamped to >= 1) | Number of worker threads used for MJML render/minify processing                               |
+| `RENDER_QUEUE_SIZE` | No       | `64`                                   | Maximum queued render requests waiting for an available worker before HTTP 503 backpressure   |
+| `RENDER_TIMEOUT_MS` | No       | `20000`                                | Per-request render timeout in milliseconds                                                    |
+| `RATE_LIMIT_MAX_REQUESTS` | No | `120`                                 | Maximum requests per client source within the configured rate-limit window                    |
+| `RATE_LIMIT_WINDOW_MS` | No    | `60000`                                | Rate-limit window duration in milliseconds                                                    |

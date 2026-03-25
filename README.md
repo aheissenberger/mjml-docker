@@ -13,12 +13,13 @@ native TypeScript support — no build step required.
 
 ```bash
 pnpm install
+cp .env.example .env
 ```
 
-Set a required environment variable before starting:
+Set configuration variables in `.env` (or export them in your shell):
 
 ```bash
-export API_KEY="your-secret-api-key"
+export API_KEY="your-secret-api-key" # required
 ```
 
 ## Run
@@ -28,6 +29,14 @@ pnpm start
 ```
 
 The server listens on `http://localhost:3000` by default. Set `PORT` to change it.
+
+Optional worker-pool tuning:
+
+- `RENDER_WORKERS` (integer >= 1): number of render worker threads
+- `RENDER_QUEUE_SIZE` (integer >= 0): bounded queue length before HTTP 503 backpressure
+- `RENDER_TIMEOUT_MS` (integer >= 1): per-request render timeout in milliseconds
+- `RATE_LIMIT_MAX_REQUESTS` (integer >= 1): max requests per client in each rate-limit window
+- `RATE_LIMIT_WINDOW_MS` (integer >= 1): rate-limit window size in milliseconds
 
 ## Docker
 
@@ -39,8 +48,47 @@ docker run -p 3000:3000 -e API_KEY="your-secret-api-key" mjml-api
 
 ### Docker Compose
 
+Compose loads `.env` by default (same directory as `compose.yaml`) and
+passes the configured variables into the `api` service via
+`environment` in `compose.yaml`.
+
 ```bash
-API_KEY="your-secret-api-key" docker compose up --build
+cp .env.example .env
+docker compose up --build
+```
+
+#### Local Presets
+
+Development-style preset (fewer workers, shorter timeout):
+
+```bash
+cp .env.example .env
+cat > .env <<'EOF'
+API_KEY=dev-secret-key
+PORT=3000
+RENDER_WORKERS=1
+RENDER_QUEUE_SIZE=16
+RENDER_TIMEOUT_MS=10000
+RATE_LIMIT_MAX_REQUESTS=120
+RATE_LIMIT_WINDOW_MS=60000
+EOF
+docker compose up --build
+```
+
+Production-style preset (more workers, larger queue):
+
+```bash
+cp .env.example .env
+cat > .env <<'EOF'
+API_KEY=replace-with-strong-secret
+PORT=3000
+RENDER_WORKERS=4
+RENDER_QUEUE_SIZE=128
+RENDER_TIMEOUT_MS=30000
+RATE_LIMIT_MAX_REQUESTS=240
+RATE_LIMIT_WINDOW_MS=60000
+EOF
+docker compose up -d --build
 ```
 
 Check health status:
@@ -62,7 +110,9 @@ Troubleshooting:
 - Missing `API_KEY`:
 
   ```bash
-  API_KEY="your-secret-api-key" docker compose up --build
+  cp .env.example .env
+  # then edit .env and set API_KEY
+  docker compose up --build
   ```
 
 - Port `3000` already in use:
