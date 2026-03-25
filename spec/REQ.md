@@ -9,6 +9,9 @@ Source of truth: `spec/requirements/*.md`
 
 The service must start an HTTP server listening on a configurable port (default 3000
 via `PORT` environment variable) and respond to HTTP requests with JSON content.
+Invalid port configuration must fail fast at startup.
+Optional worker tuning environment variables must be validated at startup.
+Runtime tuning values use bounded validation ranges to prevent unsafe configuration.
 
 ### FR-002 Health Check Endpoint
 
@@ -25,6 +28,11 @@ The server must expose `POST /v1/render` accepting an MJML template string in th
 request body (`{ "mjml": "<string>" }`) and returning the compiled HTML
 (`{ "html": "<string>", "errors": [] }`). Rendering is performed by the `mjml` npm
 package.
+The endpoint enforces request size/time limits and treats internal render/minify failures
+as server errors.
+Rendering uses bounded worker-pool backpressure and may return HTTP 503 under overload.
+Worker-pool size, queue length, and timeout are configurable via validated environment variables.
+Per-client rate limiting is enforced and overload from client bursts returns HTTP 429.
 
 ### FR-005 API Key Authentication
 
@@ -40,6 +48,8 @@ The builder stage installs dependencies (pnpm installed via `npm install -g pnpm
 the runtime stage copies only production files, runs as the non-root `node` user, sets
 `NODE_ENV=production`, and exposes port 3000. A `.dockerignore` file excludes
 non-runtime artefacts (`.git`, `spec/`, `test/`, etc.).
+Production dependencies are prepared in a build stage and copied into runtime without
+running package manager install commands in the final image stage.
 
 ### FR-007 Docker Compose Runtime
 
@@ -47,6 +57,8 @@ The repository must include a Compose definition (`compose.yaml` preferred) to r
 service with a configured health check and restart policy. The service must provide required
 runtime environment (including `API_KEY`) and host port mapping so the container can be
 started and monitored with standard `docker compose` workflows.
+A sample `.env.example` must document required and optional runtime variables.
+Compose usage should load `.env` automatically and document development vs production-style presets.
 
 ### FR-008 Request-Scoped MJML Options
 
@@ -55,3 +67,4 @@ request a constrained subset of MJML render behaviour per API call. Only seriali
 request-local options are in scope; filesystem-backed, config-backed, function-valued,
 deprecated, undocumented, or contract-breaking MJML options remain disallowed. A request-level
 `minify` boolean may trigger safe post-processing of rendered HTML output.
+Custom font URLs must be valid absolute `https://` URLs.
