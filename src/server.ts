@@ -37,7 +37,10 @@ type RenderWorkerSuccessResponse = {
 type RenderWorkerResponse = RenderWorkerErrorResponse | RenderWorkerSuccessResponse;
 
 type PendingRenderTask = {
-  resolve: (value: { html: string; errors: Array<{ tagName: string; message: string; line: number }> }) => void;
+  resolve: (value: {
+    html: string;
+    errors: Array<{ tagName: string; message: string; line: number }>;
+  }) => void;
   reject: (error: unknown) => void;
   timeout: NodeJS.Timeout;
   signal?: AbortSignal;
@@ -60,7 +63,10 @@ export type ApiServerOptions = {
 class BodyReadError extends Error {
   readonly code: "BODY_TOO_LARGE" | "BODY_TIMEOUT" | "BODY_ABORTED" | "BODY_READ_FAILED";
 
-  constructor(code: "BODY_TOO_LARGE" | "BODY_TIMEOUT" | "BODY_ABORTED" | "BODY_READ_FAILED", message: string) {
+  constructor(
+    code: "BODY_TOO_LARGE" | "BODY_TIMEOUT" | "BODY_ABORTED" | "BODY_READ_FAILED",
+    message: string,
+  ) {
     super(message);
     this.code = code;
   }
@@ -117,7 +123,9 @@ function resolveStrictPositiveInt(
 ): number {
   if (value === undefined) return fallback;
   if (!Number.isInteger(value) || value < 0) {
-    throw new TypeError(`${fieldName} must be ${zeroAllowed ? "an integer >= 0" : "an integer >= 1"}`);
+    throw new TypeError(
+      `${fieldName} must be ${zeroAllowed ? "an integer >= 0" : "an integer >= 1"}`,
+    );
   }
   if (!zeroAllowed && value === 0) {
     throw new TypeError(`${fieldName} must be an integer >= 1`);
@@ -247,7 +255,10 @@ class RenderWorkerPool {
 
     worker.on("error", (error) => {
       const message = error instanceof Error ? error.message : "Unknown render worker error";
-      this.handleWorkerFailure(index, new RenderExecutionError(500, `Render worker error: ${message}`));
+      this.handleWorkerFailure(
+        index,
+        new RenderExecutionError(500, `Render worker error: ${message}`),
+      );
     });
 
     worker.on("exit", (code) => {
@@ -373,7 +384,9 @@ function readBody(req: IncomingMessage, maxBytes: number, timeoutMs: number): Pr
 
       if (totalBytes > maxBytes) {
         req.destroy();
-        finishWithError(new BodyReadError("BODY_TOO_LARGE", "Request body exceeds the maximum size"));
+        finishWithError(
+          new BodyReadError("BODY_TOO_LARGE", "Request body exceeds the maximum size"),
+        );
         return;
       }
 
@@ -398,7 +411,10 @@ function readBody(req: IncomingMessage, maxBytes: number, timeoutMs: number): Pr
     const timeout = setTimeout(() => {
       req.destroy();
       finishWithError(
-        new BodyReadError("BODY_TIMEOUT", "Request body was not received within the allowed timeout"),
+        new BodyReadError(
+          "BODY_TIMEOUT",
+          "Request body was not received within the allowed timeout",
+        ),
       );
     }, timeoutMs);
 
@@ -519,7 +535,9 @@ function createRequestHandler(
       if (contentLengthExceedsLimit(req, MAX_RENDER_BODY_BYTES)) {
         res.writeHead(413, JSON_CT);
         res.end(
-          JSON.stringify({ message: `Request body is too large (max ${MAX_RENDER_BODY_BYTES} bytes)` }),
+          JSON.stringify({
+            message: `Request body is too large (max ${MAX_RENDER_BODY_BYTES} bytes)`,
+          }),
         );
         return;
       }
@@ -531,7 +549,9 @@ function createRequestHandler(
         if (error instanceof BodyReadError && error.code === "BODY_TOO_LARGE") {
           res.writeHead(413, JSON_CT);
           res.end(
-            JSON.stringify({ message: `Request body is too large (max ${MAX_RENDER_BODY_BYTES} bytes)` }),
+            JSON.stringify({
+              message: `Request body is too large (max ${MAX_RENDER_BODY_BYTES} bytes)`,
+            }),
           );
           return;
         }
@@ -584,7 +604,10 @@ function createRequestHandler(
       };
       res.once("close", onResponseClose);
 
-      let renderResult: { html: string; errors: Array<{ tagName: string; message: string; line: number }> };
+      let renderResult: {
+        html: string;
+        errors: Array<{ tagName: string; message: string; line: number }>;
+      };
       try {
         renderResult = await renderWorker.render(mjmlInput, renderOptions, abortController.signal);
       } catch (error) {

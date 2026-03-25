@@ -17,7 +17,9 @@ const VALID_MJML = `<mjml>
   </mj-body>
 </mjml>`;
 
-async function startServer(options: ApiServerOptions = {}): Promise<{ server: Server; baseUrl: string }> {
+async function startServer(
+  options: ApiServerOptions = {},
+): Promise<{ server: Server; baseUrl: string }> {
   const server = createApiServer(TEST_API_KEY, options);
   server.listen(0);
   await once(server, "listening");
