@@ -1,0 +1,28 @@
+{
+    "name": "node25-ts-api-server",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "start": "node src/index.ts",
+        "dev": "node --watch src/index.ts",
+        "format": "oxfmt . --write",
+        "lint": "oxlint .",
+        "lint:ts": "oxlint . --type-aware --type-check",
+        "typecheck": "tsc --noEmit",
+        "test": "node --test",
+        "validate:req-files": "node scripts/spec-ledger/validate-req-files.ts",
+        "validate:req-index": "node scripts/spec-ledger/validate-req-index.ts",
+        "validate:trace-events": "node scripts/spec-ledger/validate-trace-events.ts",
+        "spec:validate": "node scripts/spec-ledger/validate-req-files.ts && node scripts/spec-ledger/validate-req-index.ts && node scripts/spec-ledger/validate-trace-events.ts"
+    },
+    "devDependencies": {
+        "@types/node": "^24.0.0",
+        "oxfmt": "^0.35.0",
+        "oxlint": "^1.50.0",
+        "typescript": "^5.9.3"
+    },
+    "engines": {
+        "node": ">=25"
+    }
+}
