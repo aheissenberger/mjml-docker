@@ -21,10 +21,10 @@
   },
   "devDependencies": {
     "@types/mjml": "^4.7.4",
-    "@types/node": "^24.0.0",
-    "oxfmt": "^0.35.0",
+    "@types/node": "^25.5.0",
+    "oxfmt": "^0.42.0",
     "oxlint": "^1.50.0",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.2"
   },
   "engines": {
     "node": ">=25"
