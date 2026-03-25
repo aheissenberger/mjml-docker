@@ -1,0 +1,31 @@
+name: Feature request
+description: Suggest an improvement
+title: "feat: "
+labels:
+  - enhancement
+body:
+  - type: input
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What problem are you trying to solve?
+      placeholder: I need...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the behavior you want
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Optional alternative approaches
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Links, examples, related requirements

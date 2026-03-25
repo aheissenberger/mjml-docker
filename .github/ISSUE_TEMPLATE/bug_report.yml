@@ -1,0 +1,46 @@
+name: Bug report
+description: Report an issue with current behavior
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug report.
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: One-sentence description of the bug
+      placeholder: API returns 422 for valid MJML
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include exact inputs and commands
+      placeholder: |
+        1. Start server with API_KEY
+        2. Send POST /v1/render payload...
+        3. Observe response...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Node version, pnpm version, Docker version (if relevant)

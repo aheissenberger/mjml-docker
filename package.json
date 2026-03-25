@@ -1,7 +1,17 @@
 {
   "name": "node25-ts-api-server",
+  "description": "Minimal self-hosted MJML render API built with Node.js 25+ and native TypeScript.",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://github.com/aheissenberger/mjml-docker#readme",
+  "bugs": {
+    "url": "https://github.com/aheissenberger/mjml-docker/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aheissenberger/mjml-docker.git"
+  },
   "type": "module",
   "scripts": {
     "start": "node src/index.ts",
