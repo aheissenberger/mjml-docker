@@ -18,29 +18,29 @@ const fileIds = new Set(reqFiles.map((f) => f.replace(".md", "")));
 // Extract IDs from markdown table rows: | ID | ... |
 const indexIds = new Set<string>();
 for (const line of indexContent.split("\n")) {
-    const match = /^\|\s*([A-Z]+-\d{3})\s*\|/.exec(line);
-    if (match) indexIds.add(match[1]);
+  const match = /^\|\s*([A-Z]+-\d{3})\s*\|/.exec(line);
+  if (match) indexIds.add(match[1]);
 }
 
 const errors: string[] = [];
 
 for (const id of fileIds) {
-    if (!indexIds.has(id)) {
-        errors.push(`${id}: present in spec/requirements/${id}.md but missing from index.md`);
-    }
+  if (!indexIds.has(id)) {
+    errors.push(`${id}: present in spec/requirements/${id}.md but missing from index.md`);
+  }
 }
 
 for (const id of indexIds) {
-    if (!VALID_ID_RE.test(id)) {
-        errors.push(`index.md: invalid ID format "${id}"`);
-    } else if (!fileIds.has(id)) {
-        errors.push(`index.md: entry "${id}" has no matching requirements file`);
-    }
+  if (!VALID_ID_RE.test(id)) {
+    errors.push(`index.md: invalid ID format "${id}"`);
+  } else if (!fileIds.has(id)) {
+    errors.push(`index.md: entry "${id}" has no matching requirements file`);
+  }
 }
 
 if (errors.length > 0) {
-    for (const msg of errors) console.error(`[ERROR] ${msg}`);
-    console.error(`\nvalidate:req-index FAILED — ${errors.length} error(s)`);
-    process.exit(1);
+  for (const msg of errors) console.error(`[ERROR] ${msg}`);
+  console.error(`\nvalidate:req-index FAILED — ${errors.length} error(s)`);
+  process.exit(1);
 }
 console.log(`validate:req-index PASSED — ${fileIds.size} requirement(s) indexed OK`);
