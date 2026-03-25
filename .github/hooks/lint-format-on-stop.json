@@ -1,0 +1,16 @@
+{
+    "hooks": {
+        "Stop": [
+            {
+                "type": "command",
+                "command": "./scripts/hooks/lint-format-changed.sh",
+                "timeout": 180
+            },
+            {
+                "type": "command",
+                "command": "./scripts/hooks/verify-spec-changed.sh",
+                "timeout": 180
+            }
+        ]
+    }
+}
