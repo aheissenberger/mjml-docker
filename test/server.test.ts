@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { once } from "node:events";
 import type { Server } from "node:http";
 
-import { createApiServer } from "../src/server.ts";
+import { createApiServer, type ApiServerOptions } from "../src/server.ts";
 
 const TEST_API_KEY = "test-api-key-123";
 
@@ -17,8 +17,8 @@ const VALID_MJML = `<mjml>
   </mj-body>
 </mjml>`;
 
-async function startServer(): Promise<{ server: Server; baseUrl: string }> {
-  const server = createApiServer(TEST_API_KEY);
+async function startServer(options: ApiServerOptions = {}): Promise<{ server: Server; baseUrl: string }> {
+  const server = createApiServer(TEST_API_KEY, options);
   server.listen(0);
   await once(server, "listening");
   const address = server.address();
@@ -39,6 +39,17 @@ void test("GET /health returns ok without auth", async () => {
   const { server, baseUrl } = await startServer();
   try {
     const res = await fetch(`${baseUrl}/health`);
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { status: "ok" });
+  } finally {
+    await stopServer(server);
+  }
+});
+
+void test("GET /health with query string returns ok without auth", async () => {
+  const { server, baseUrl } = await startServer();
+  try {
+    const res = await fetch(`${baseUrl}/health?probe=1`);
     assert.equal(res.status, 200);
     assert.deepEqual(await res.json(), { status: "ok" });
   } finally {
@@ -75,6 +86,20 @@ void test("GET / with correct Bearer token → 200", async () => {
   const { server, baseUrl } = await startServer();
   try {
     const res = await fetch(`${baseUrl}/`, {
+      headers: { Authorization: `Bearer ${TEST_API_KEY}` },
+    });
+    assert.equal(res.status, 200);
+    const data = (await res.json()) as { endpoints: string[] };
+    assert.ok(Array.isArray(data.endpoints));
+  } finally {
+    await stopServer(server);
+  }
+});
+
+void test("GET / with query string and correct token → 200", async () => {
+  const { server, baseUrl } = await startServer();
+  try {
+    const res = await fetch(`${baseUrl}/?verbose=true`, {
       headers: { Authorization: `Bearer ${TEST_API_KEY}` },
     });
     assert.equal(res.status, 200);
@@ -349,6 +374,106 @@ void test("POST /v1/render with invalid JSON body → 422", async () => {
     assert.equal(res.status, 422);
     const data = (await res.json()) as { message: string };
     assert.ok(typeof data.message === "string" && data.message.length > 0);
+  } finally {
+    await stopServer(server);
+  }
+});
+
+void test("POST /v1/render with invalid options.fonts URL scheme → 422", async () => {
+  const { server, baseUrl } = await startServer();
+  try {
+    const res = await fetch(`${baseUrl}/v1/render`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        mjml: VALID_MJML,
+        options: { fonts: { BadFont: "javascript:alert(1)" } },
+      }),
+    });
+    assert.equal(res.status, 422);
+    const data = (await res.json()) as { message: string };
+    assert.ok(data.message.includes("only https URLs are allowed"));
+  } finally {
+    await stopServer(server);
+  }
+});
+
+void test("POST /v1/render oversized body → 413", async () => {
+  const { server, baseUrl } = await startServer();
+  const largeText = "A".repeat(1_100_000);
+  const largeMjml = `<mjml><mj-body><mj-section><mj-column><mj-text>${largeText}</mj-text></mj-column></mj-section></mj-body></mjml>`;
+  try {
+    const res = await fetch(`${baseUrl}/v1/render`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({ mjml: largeMjml }),
+    });
+    assert.equal(res.status, 413);
+    const data = (await res.json()) as { message: string };
+    assert.ok(data.message.includes("too large"));
+  } finally {
+    await stopServer(server);
+  }
+});
+
+void test("POST /v1/render returns 503 when render queue is saturated", async () => {
+  const { server, baseUrl } = await startServer({
+    renderWorkerCount: 1,
+    maxRenderQueueSize: 0,
+    rateLimitMaxRequests: 100,
+  });
+  const requestBody = JSON.stringify({ mjml: VALID_MJML, options: { minify: true } });
+  try {
+    const responses = await Promise.all(
+      Array.from({ length: 8 }, () =>
+        fetch(`${baseUrl}/v1/render`, {
+          method: "POST",
+          headers: authHeaders,
+          body: requestBody,
+        }),
+      ),
+    );
+
+    assert.ok(responses.some((res) => res.status === 200));
+    assert.ok(responses.some((res) => res.status === 503));
+
+    const recoveryResponse = await fetch(`${baseUrl}/v1/render`, {
+      method: "POST",
+      headers: authHeaders,
+      body: requestBody,
+    });
+    assert.equal(recoveryResponse.status, 200);
+  } finally {
+    await stopServer(server);
+  }
+});
+
+void test("POST /v1/render returns 429 when rate limit is exceeded", async () => {
+  const { server, baseUrl } = await startServer({
+    rateLimitMaxRequests: 2,
+    rateLimitWindowMs: 60_000,
+  });
+  const requestBody = JSON.stringify({ mjml: VALID_MJML });
+  try {
+    const first = await fetch(`${baseUrl}/v1/render`, {
+      method: "POST",
+      headers: authHeaders,
+      body: requestBody,
+    });
+    const second = await fetch(`${baseUrl}/v1/render`, {
+      method: "POST",
+      headers: authHeaders,
+      body: requestBody,
+    });
+    const third = await fetch(`${baseUrl}/v1/render`, {
+      method: "POST",
+      headers: authHeaders,
+      body: requestBody,
+    });
+
+    assert.equal(first.status, 200);
+    assert.equal(second.status, 200);
+    assert.equal(third.status, 429);
   } finally {
     await stopServer(server);
   }
