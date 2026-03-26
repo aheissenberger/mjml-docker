@@ -621,4 +621,3 @@ void test("client disconnect during render is handled gracefully and pool recove
     await stopServer(server);
   }
 });
-
