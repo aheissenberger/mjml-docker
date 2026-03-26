@@ -22,8 +22,8 @@ Client → HTTP → node25-ts-api-server (port 3000)
 
 - No database
 - JSON-only responses
-- Static API key authentication via Bearer token — `API_KEY` env var (FR-005, Proposed)
-- MJML npm library for email template rendering — no external HTTP calls (FR-004, Proposed)
+- Static API key authentication via Bearer token — `API_KEY` env var (FR-005, Done)
+- MJML npm library for email template rendering — no external HTTP calls (FR-004, Done)
 
 ## Container Topology (FR-006, FR-007)
 
