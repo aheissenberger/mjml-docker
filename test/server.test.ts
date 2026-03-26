@@ -480,3 +480,24 @@ void test("POST /v1/render returns 429 when rate limit is exceeded", async () =>
     await stopServer(server);
   }
 });
+
+// ─── FR-003: Root info endpoint tests ────────────────────────────────────────
+
+void test("GET / returns name, message and endpoints fields", async () => {
+  const { server, baseUrl } = await startServer();
+  try {
+    const res = await fetch(`${baseUrl}/`, {
+      headers: { Authorization: `Bearer ${TEST_API_KEY}` },
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("content-type"), "application/json");
+    const data = (await res.json()) as { name: string; message: string; endpoints: string[] };
+    assert.ok(typeof data.name === "string" && data.name.length > 0);
+    assert.ok(typeof data.message === "string" && data.message.length > 0);
+    assert.ok(Array.isArray(data.endpoints) && data.endpoints.length > 0);
+    assert.ok(data.endpoints.some((e) => e.includes("/health")));
+    assert.ok(data.endpoints.some((e) => e.includes("/v1/render")));
+  } finally {
+    await stopServer(server);
+  }
+});
