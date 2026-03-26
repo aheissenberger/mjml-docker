@@ -70,3 +70,12 @@ request-local options are in scope; filesystem-backed, config-backed, function-v
 deprecated, undocumented, or contract-breaking MJML options remain disallowed. A request-level
 `minify` boolean may trigger safe post-processing of rendered HTML output.
 Custom font URLs must be valid absolute `https://` URLs.
+
+### FR-009 GHCR Publish Automation
+
+The repository must include a GitHub Actions workflow that builds and publishes the Docker
+image to GitHub Container Registry (`ghcr.io`) via a manually triggered run
+(`workflow_dispatch`). A package script should trigger this workflow through GitHub CLI
+(`gh workflow run`) so operators can dispatch image publishing from local development
+environments. The workflow should use repository-scoped `GITHUB_TOKEN` authentication with
+`packages: write` permission and push both a versioned image tag and `latest`.

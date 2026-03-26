@@ -46,6 +46,55 @@ docker build -t mjml-api .
 docker run -p 3000:3000 -e API_KEY="your-secret-api-key" mjml-api
 ```
 
+### Use Published GitHub Image (GHCR)
+
+Publish first (manual dispatch):
+
+```bash
+pnpm gh:docker-publish -- <ref>
+```
+
+Use `<ref>` as a branch or tag name (for example `master` or `v1.1.0`).
+
+Reference the published image as:
+
+```bash
+ghcr.io/aheissenberger/mjml-docker:<tag>
+```
+
+Examples:
+
+```bash
+# Pin to a release tag
+docker pull ghcr.io/aheissenberger/mjml-docker:v1.1.0
+
+# Or use latest
+docker pull ghcr.io/aheissenberger/mjml-docker:latest
+
+docker run --rm -p 3000:3000 \
+  -e API_KEY="your-secret-api-key" \
+  ghcr.io/aheissenberger/mjml-docker:latest
+```
+
+Compose (without local build):
+
+```yaml
+services:
+  api:
+    image: ghcr.io/aheissenberger/mjml-docker:v1.1.0
+    environment:
+      API_KEY: ${API_KEY:?API_KEY is required}
+      PORT: ${PORT:-3000}
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+```
+
+If the package is private, authenticate first:
+
+```bash
+echo "$GITHUB_TOKEN" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
+```
+
 ### Docker Compose
 
 Compose loads `.env` by default (same directory as `compose.yaml`) and

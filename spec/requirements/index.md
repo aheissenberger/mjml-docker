@@ -13,3 +13,4 @@ Source of truth: `spec/requirements/*.md`
 | FR-006 | Done   | Dockerfile — multi-stage build, node:25-trixie-slim, non-root runtime                             |
 | FR-007 | Done   | Docker Compose file — service health check and restart policy                                     |
 | FR-008 | Done   | Request-scoped MJML options — optional constrained `options` object with `minify` post-processing |
+| FR-009 | Done   | CI publish automation — GH CLI script dispatches manual GHCR publish workflow                     |

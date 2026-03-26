@@ -20,6 +20,7 @@
     "lint": "oxlint .",
     "lint:ts": "oxlint . --type-aware --type-check",
     "typecheck": "tsc --noEmit",
+    "gh:docker-publish": "sh -c 'ref=${1:-$(git rev-parse --abbrev-ref HEAD)}; gh workflow run docker-publish.yml --ref \"$ref\"' --",
     "test": "node --test",
     "validate:req-files": "node scripts/spec-ledger/validate-req-files.ts",
     "validate:req-index": "node scripts/spec-ledger/validate-req-index.ts",
