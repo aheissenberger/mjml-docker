@@ -1,4 +1,4 @@
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createServer, type Server, type IncomingMessage, type ServerResponse } from "node:http";
 import { timingSafeEqual } from "node:crypto";
 import { availableParallelism } from "node:os";
 import { Worker } from "node:worker_threads";
@@ -85,6 +85,7 @@ class SlidingWindowRateLimiter {
   private buckets = new Map<string, { count: number; windowStart: number }>();
   private readonly maxRequests: number;
   private readonly windowMs: number;
+  private readonly sweepTimer: NodeJS.Timeout;
 
   constructor(options: ApiServerOptions = {}) {
     this.maxRequests = resolveStrictPositiveInt(
@@ -97,6 +98,12 @@ class SlidingWindowRateLimiter {
       DEFAULT_RATE_LIMIT_WINDOW_MS,
       "rateLimitWindowMs",
     );
+    // Sweep stale buckets once per window to prevent unbounded Map growth.
+    this.sweepTimer = setInterval(() => {
+      this.sweep();
+    }, this.windowMs);
+    // Do not prevent the process from exiting if the server is idle.
+    this.sweepTimer.unref();
   }
 
   allow(key: string, now = Date.now()): boolean {
@@ -112,6 +119,20 @@ class SlidingWindowRateLimiter {
 
     bucket.count += 1;
     return true;
+  }
+
+  destroy(): void {
+    clearInterval(this.sweepTimer);
+    this.buckets.clear();
+  }
+
+  private sweep(): void {
+    const now = Date.now();
+    for (const [key, bucket] of this.buckets) {
+      if (now - bucket.windowStart >= this.windowMs) {
+        this.buckets.delete(key);
+      }
+    }
   }
 }
 
@@ -133,7 +154,7 @@ function resolveStrictPositiveInt(
   return value;
 }
 
-class RenderWorkerPool {
+export class RenderWorkerPool {
   private workers: WorkerSlot[] = [];
   private queue: RenderWorkerRequest[] = [];
   private nextTaskId = 1;
@@ -226,6 +247,17 @@ class RenderWorkerPool {
     this.queue = [];
     await Promise.all(this.workers.map((slot) => slot.worker.terminate()));
     this.workers = [];
+  }
+
+  /**
+   * Forcibly terminates the worker at the given index to simulate an unexpected crash.
+   * The pool detects the exit event and automatically restarts the worker.
+   * Intended for use in tests only.
+   */
+  terminateWorker(index: number): Promise<number> {
+    const slot = this.workers[index];
+    if (!slot) throw new RangeError(`No worker slot at index ${index}`);
+    return slot.worker.terminate();
   }
 
   private createWorkerSlot(index: number): WorkerSlot {
@@ -637,14 +669,18 @@ function createRequestHandler(
   };
 }
 
-export function createApiServer(apiKey: string, options: ApiServerOptions = {}) {
+export type ApiServer = Server & { pool: RenderWorkerPool };
+
+export function createApiServer(apiKey: string, options: ApiServerOptions = {}): ApiServer {
   const renderWorker = new RenderWorkerPool(options);
   const rateLimiter = new SlidingWindowRateLimiter(options);
-  const server = createServer(createRequestHandler(apiKey, renderWorker, rateLimiter));
+  const server = createServer(createRequestHandler(apiKey, renderWorker, rateLimiter)) as ApiServer;
+  server.pool = renderWorker;
   server.requestTimeout = BODY_READ_TIMEOUT_MS + 5_000;
   server.headersTimeout = BODY_READ_TIMEOUT_MS + 5_000;
   server.on("close", () => {
     void renderWorker.close();
+    rateLimiter.destroy();
   });
   return server;
 }

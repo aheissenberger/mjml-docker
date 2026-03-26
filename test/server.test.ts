@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { once } from "node:events";
 import type { Server } from "node:http";
 
-import { createApiServer, type ApiServerOptions } from "../src/server.ts";
+import { createApiServer, type ApiServerOptions, type ApiServer } from "../src/server.ts";
 
 const TEST_API_KEY = "test-api-key-123";
 
@@ -19,7 +19,7 @@ const VALID_MJML = `<mjml>
 
 async function startServer(
   options: ApiServerOptions = {},
-): Promise<{ server: Server; baseUrl: string }> {
+): Promise<{ server: ApiServer; baseUrl: string }> {
   const server = createApiServer(TEST_API_KEY, options);
   server.listen(0);
   await once(server, "listening");
@@ -501,3 +501,124 @@ void test("GET / returns name, message and endpoints fields", async () => {
     await stopServer(server);
   }
 });
+
+// ─── URL policy ───────────────────────────────────────────────────────────────
+
+void test("POST /v1/render with http:// font URL → 422", async () => {
+  const { server, baseUrl } = await startServer();
+  try {
+    const res = await fetch(`${baseUrl}/v1/render`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        mjml: VALID_MJML,
+        options: { fonts: { MyFont: "http://example.com/font.css" } },
+      }),
+    });
+    assert.equal(res.status, 422);
+    const data = (await res.json()) as { message: string };
+    assert.ok(data.message.includes("only https URLs are allowed"));
+  } finally {
+    await stopServer(server);
+  }
+});
+
+// ─── Worker-failure path ──────────────────────────────────────────────────────
+
+void test("worker pool recovers after idle worker terminates unexpectedly", async () => {
+  const { server, baseUrl } = await startServer({
+    renderWorkerCount: 1,
+    maxRenderQueueSize: 0,
+    rateLimitMaxRequests: 100,
+  });
+  try {
+    // Terminate the idle worker; pool should auto-restart it.
+    await server.pool.terminateWorker(0);
+    // Allow the exit event and pool restart to propagate.
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    // The restarted worker should handle new requests normally.
+    const res = await fetch(`${baseUrl}/v1/render`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({ mjml: VALID_MJML }),
+    });
+    assert.equal(res.status, 200);
+  } finally {
+    await stopServer(server);
+  }
+});
+
+void test("worker crash during render rejects in-flight task and pool recovers", async () => {
+  const { server, baseUrl } = await startServer({
+    renderWorkerCount: 1,
+    maxRenderQueueSize: 1,
+    rateLimitMaxRequests: 100,
+  });
+  const requestBody = JSON.stringify({ mjml: VALID_MJML });
+  try {
+    // Request A occupies the single worker; request B is queued.
+    const resAPromise = fetch(`${baseUrl}/v1/render`, {
+      method: "POST",
+      headers: authHeaders,
+      body: requestBody,
+    });
+    const resBPromise = fetch(`${baseUrl}/v1/render`, {
+      method: "POST",
+      headers: authHeaders,
+      body: requestBody,
+    });
+
+    // Wait for both requests to reach the server and be dispatched/queued,
+    // then terminate the worker while it is still processing request A.
+    await new Promise<void>((resolve) => setTimeout(resolve, 30));
+    await server.pool.terminateWorker(0);
+
+    // The in-flight task (A) must be rejected with 500.
+    const resA = await resAPromise;
+    assert.equal(resA.status, 500);
+
+    // Request B was queued and is picked up by the restarted worker.
+    const resB = await resBPromise;
+    assert.equal(resB.status, 200);
+  } finally {
+    await stopServer(server);
+  }
+});
+
+// ─── Cancellation path ───────────────────────────────────────────────────────
+
+void test("client disconnect during render is handled gracefully and pool recovers", async () => {
+  const { server, baseUrl } = await startServer({
+    renderWorkerCount: 1,
+    maxRenderQueueSize: 5,
+    rateLimitMaxRequests: 100,
+  });
+  try {
+    const controller = new AbortController();
+    const abortedFetch = fetch(`${baseUrl}/v1/render`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({ mjml: VALID_MJML }),
+      signal: controller.signal,
+    }).catch(() => null); // AbortError is expected
+
+    // Abort after a short delay — the render may or may not be complete; either is fine.
+    await new Promise<void>((resolve) => setTimeout(resolve, 20));
+    controller.abort();
+    await abortedFetch;
+
+    // Allow any pending cleanup to settle before sending the recovery request.
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    const res = await fetch(`${baseUrl}/v1/render`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({ mjml: VALID_MJML }),
+    });
+    assert.equal(res.status, 200);
+  } finally {
+    await stopServer(server);
+  }
+});
+
