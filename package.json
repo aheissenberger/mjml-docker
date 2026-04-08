@@ -34,7 +34,7 @@
   "devDependencies": {
     "@types/html-minifier-terser": "^7.0.2",
     "@types/mjml": "^4.7.4",
-    "@types/node": "^25.5.0",
+    "@types/node": "^25.5.2",
     "oxfmt": "^0.43.0",
     "oxlint": "^1.50.0",
     "oxlint-tsgolint": "^0.19.0",
