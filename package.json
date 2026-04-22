@@ -29,11 +29,11 @@
   },
   "dependencies": {
     "html-minifier-terser": "^7.2.0",
-    "mjml": "^4.18.0"
+    "mjml": "^5.0.1"
   },
   "devDependencies": {
     "@types/html-minifier-terser": "^7.0.2",
-    "@types/mjml": "^4.7.4",
+    "@types/mjml": "^5.0.0",
     "@types/node": "^25.5.0",
     "oxfmt": "^0.43.0",
     "oxlint": "^1.50.0",
