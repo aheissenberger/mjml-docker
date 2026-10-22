@@ -35,7 +35,7 @@
     "@types/html-minifier-terser": "^7.0.2",
     "@types/mjml": "^4.7.4",
     "@types/node": "^26.6.5",
-    "oxfmt": "^0.43.0",
+    "oxfmt": "^0.74.0",
     "oxlint": "^1.65.0",
     "oxlint-tsgolint": "^7.0.2004",
     "typescript": "^6.0.3"
