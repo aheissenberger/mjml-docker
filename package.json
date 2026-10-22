@@ -29,16 +29,16 @@
   },
   "dependencies": {
     "html-minifier-terser": "^7.2.0",
-    "mjml": "^4.18.0"
+    "mjml": "^5.4.1"
   },
   "devDependencies": {
     "@types/html-minifier-terser": "^7.0.2",
-    "@types/mjml": "^4.7.4",
+    "@types/mjml": "^5.0.0",
     "@types/node": "^26.6.5",
     "oxfmt": "^0.74.0",
-    "oxlint": "^1.65.0",
+    "oxlint": "^1.89.0",
     "oxlint-tsgolint": "^7.0.2004",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   },
   "engines": {
     "node": ">=25"
