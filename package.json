@@ -36,7 +36,7 @@
     "@types/mjml": "^4.7.4",
     "@types/node": "^26.6.5",
     "oxfmt": "^0.74.0",
-    "oxlint": "^1.65.0",
+    "oxlint": "^1.89.0",
     "oxlint-tsgolint": "^7.0.2004",
     "typescript": "^6.0.3"
   },
