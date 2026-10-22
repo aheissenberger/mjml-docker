@@ -30,6 +30,30 @@ async function startServer(
   return { server, baseUrl: `http://127.0.0.1:${address.port}` };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+async function readJson(res: Response): Promise<Record<string, unknown>> {
+  const data: unknown = await res.json();
+  if (!isRecord(data)) assert.fail("expected a JSON object response body");
+  return data;
+}
+
+function stringField(data: Record<string, unknown>, key: string): string {
+  const value = data[key];
+  if (typeof value !== "string") assert.fail(`expected "${key}" to be a string`);
+  return value;
+}
+
+function stringArrayField(data: Record<string, unknown>, key: string): string[] {
+  const value = data[key];
+  if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) {
+    assert.fail(`expected "${key}" to be an array of strings`);
+  }
+  return value;
+}
+
 async function stopServer(server: Server): Promise<void> {
   server.close();
   await once(server, "close");
@@ -91,7 +115,7 @@ void test("GET / with correct Bearer token → 200", async () => {
       headers: { Authorization: `Bearer ${TEST_API_KEY}` },
     });
     assert.equal(res.status, 200);
-    const data = (await res.json()) as { endpoints: string[] };
+    const data = await readJson(res);
     assert.ok(Array.isArray(data.endpoints));
   } finally {
     await stopServer(server);
@@ -105,7 +129,7 @@ void test("GET / with query string and correct token → 200", async () => {
       headers: { Authorization: `Bearer ${TEST_API_KEY}` },
     });
     assert.equal(res.status, 200);
-    const data = (await res.json()) as { endpoints: string[] };
+    const data = await readJson(res);
     assert.ok(Array.isArray(data.endpoints));
   } finally {
     await stopServer(server);
@@ -162,7 +186,7 @@ void test("POST /v1/render with valid MJML → 200 + html + empty errors", async
     });
     assert.equal(res.status, 200);
     assert.equal(res.headers.get("content-type"), "application/json");
-    const data = (await res.json()) as { html: string; errors: unknown[] };
+    const data = await readJson(res);
     assert.ok(typeof data.html === "string" && data.html.length > 0);
     assert.deepEqual(data.errors, []);
   } finally {
@@ -190,7 +214,7 @@ void test("POST /v1/render with MJML that has warnings → 200 + errors populate
       body: JSON.stringify({ mjml: mjmlWithWarning }),
     });
     assert.equal(res.status, 200);
-    const data = (await res.json()) as { html: string; errors: unknown[] };
+    const data = await readJson(res);
     assert.ok(typeof data.html === "string");
     // Errors may or may not be populated depending on MJML version; just verify shape
     assert.ok(Array.isArray(data.errors));
@@ -220,8 +244,8 @@ void test("POST /v1/render with options.fonts → 200 + custom font import", asy
       }),
     });
     assert.equal(res.status, 200);
-    const data = (await res.json()) as { html: string; errors: unknown[] };
-    assert.ok(data.html.includes("https://example.com/acme.css"));
+    const data = await readJson(res);
+    assert.ok(stringField(data, "html").includes("https://example.com/acme.css"));
     assert.ok(Array.isArray(data.errors));
   } finally {
     await stopServer(server);
@@ -240,7 +264,7 @@ void test("POST /v1/render with options.keepComments boolean → 200", async () 
       }),
     });
     assert.equal(res.status, 200);
-    const data = (await res.json()) as { html: string; errors: unknown[] };
+    const data = await readJson(res);
     assert.ok(typeof data.html === "string" && data.html.length > 0);
   } finally {
     await stopServer(server);
@@ -277,9 +301,9 @@ void test("POST /v1/render with options.minify=true → 200 + shorter output", a
     assert.equal(normalRes.status, 200);
     assert.equal(minifiedRes.status, 200);
 
-    const normalData = (await normalRes.json()) as { html: string };
-    const minifiedData = (await minifiedRes.json()) as { html: string };
-    assert.ok(minifiedData.html.length < normalData.html.length);
+    const normalData = await readJson(normalRes);
+    const minifiedData = await readJson(minifiedRes);
+    assert.ok(stringField(minifiedData, "html").length < stringField(normalData, "html").length);
   } finally {
     await stopServer(server);
   }
@@ -294,7 +318,7 @@ void test("POST /v1/render missing mjml field → 422", async () => {
       body: JSON.stringify({ foo: "bar" }),
     });
     assert.equal(res.status, 422);
-    const data = (await res.json()) as { message: string };
+    const data = await readJson(res);
     assert.ok(typeof data.message === "string" && data.message.length > 0);
   } finally {
     await stopServer(server);
@@ -310,7 +334,7 @@ void test("POST /v1/render with non-string mjml → 422", async () => {
       body: JSON.stringify({ mjml: 42 }),
     });
     assert.equal(res.status, 422);
-    const data = (await res.json()) as { message: string };
+    const data = await readJson(res);
     assert.ok(typeof data.message === "string" && data.message.length > 0);
   } finally {
     await stopServer(server);
@@ -326,8 +350,8 @@ void test("POST /v1/render with non-object options → 422", async () => {
       body: JSON.stringify({ mjml: VALID_MJML, options: "bad" }),
     });
     assert.equal(res.status, 422);
-    const data = (await res.json()) as { message: string };
-    assert.ok(data.message.includes("options"));
+    const data = await readJson(res);
+    assert.ok(stringField(data, "message").includes("options"));
   } finally {
     await stopServer(server);
   }
@@ -342,8 +366,8 @@ void test("POST /v1/render with unknown options key → 422", async () => {
       body: JSON.stringify({ mjml: VALID_MJML, options: { notAllowed: true } }),
     });
     assert.equal(res.status, 422);
-    const data = (await res.json()) as { message: string };
-    assert.ok(data.message.includes("unknown option"));
+    const data = await readJson(res);
+    assert.ok(stringField(data, "message").includes("unknown option"));
   } finally {
     await stopServer(server);
   }
@@ -358,8 +382,8 @@ void test("POST /v1/render with non-boolean options.minify → 422", async () =>
       body: JSON.stringify({ mjml: VALID_MJML, options: { minify: "yes" } }),
     });
     assert.equal(res.status, 422);
-    const data = (await res.json()) as { message: string };
-    assert.ok(data.message.includes("options.minify"));
+    const data = await readJson(res);
+    assert.ok(stringField(data, "message").includes("options.minify"));
   } finally {
     await stopServer(server);
   }
@@ -374,7 +398,7 @@ void test("POST /v1/render with invalid JSON body → 422", async () => {
       body: "not-json{{{",
     });
     assert.equal(res.status, 422);
-    const data = (await res.json()) as { message: string };
+    const data = await readJson(res);
     assert.ok(typeof data.message === "string" && data.message.length > 0);
   } finally {
     await stopServer(server);
@@ -393,8 +417,8 @@ void test("POST /v1/render with invalid options.fonts URL scheme → 422", async
       }),
     });
     assert.equal(res.status, 422);
-    const data = (await res.json()) as { message: string };
-    assert.ok(data.message.includes("only https URLs are allowed"));
+    const data = await readJson(res);
+    assert.ok(stringField(data, "message").includes("only https URLs are allowed"));
   } finally {
     await stopServer(server);
   }
@@ -411,8 +435,8 @@ void test("POST /v1/render oversized body → 413", async () => {
       body: JSON.stringify({ mjml: largeMjml }),
     });
     assert.equal(res.status, 413);
-    const data = (await res.json()) as { message: string };
-    assert.ok(data.message.includes("too large"));
+    const data = await readJson(res);
+    assert.ok(stringField(data, "message").includes("too large"));
   } finally {
     await stopServer(server);
   }
@@ -491,12 +515,12 @@ void test("GET / returns name, message and endpoints fields", async () => {
     });
     assert.equal(res.status, 200);
     assert.equal(res.headers.get("content-type"), "application/json");
-    const data = (await res.json()) as { name: string; message: string; endpoints: string[] };
+    const data = await readJson(res);
     assert.ok(typeof data.name === "string" && data.name.length > 0);
     assert.ok(typeof data.message === "string" && data.message.length > 0);
     assert.ok(Array.isArray(data.endpoints) && data.endpoints.length > 0);
-    assert.ok(data.endpoints.some((e) => e.includes("/health")));
-    assert.ok(data.endpoints.some((e) => e.includes("/v1/render")));
+    assert.ok(stringArrayField(data, "endpoints").some((e) => e.includes("/health")));
+    assert.ok(stringArrayField(data, "endpoints").some((e) => e.includes("/v1/render")));
   } finally {
     await stopServer(server);
   }
@@ -516,8 +540,8 @@ void test("POST /v1/render with http:// font URL → 422", async () => {
       }),
     });
     assert.equal(res.status, 422);
-    const data = (await res.json()) as { message: string };
-    assert.ok(data.message.includes("only https URLs are allowed"));
+    const data = await readJson(res);
+    assert.ok(stringField(data, "message").includes("only https URLs are allowed"));
   } finally {
     await stopServer(server);
   }
