@@ -3,10 +3,11 @@ import { timingSafeEqual } from "node:crypto";
 import { availableParallelism } from "node:os";
 import { Worker } from "node:worker_threads";
 
-const UNAUTHORIZED = JSON.stringify({ message: "Unauthorized" });
 const JSON_CT = { "content-type": "application/json" };
 const ALLOWED_RENDER_OPTIONS = new Set(["fonts", "keepComments", "minify"]);
+const BOOLEAN_RENDER_OPTIONS = ["keepComments", "minify"] as const;
 const MAX_RENDER_BODY_BYTES = 1024 * 1024;
+const BODY_TOO_LARGE_MESSAGE = `Request body is too large (max ${MAX_RENDER_BODY_BYTES} bytes)`;
 const BODY_READ_TIMEOUT_MS = 10_000;
 const RENDER_TIMEOUT_MS = 20_000;
 const DEFAULT_RENDER_QUEUE_SIZE = 64;
@@ -154,7 +155,7 @@ function resolveStrictPositiveInt(
   return value;
 }
 
-export class RenderWorkerPool {
+class RenderWorkerPool {
   private workers: WorkerSlot[] = [];
   private queue: RenderWorkerRequest[] = [];
   private nextTaskId = 1;
@@ -457,66 +458,156 @@ function readBody(req: IncomingMessage, maxBytes: number, timeoutMs: number): Pr
   });
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function validateFontUrl(fontName: string, fontUrl: string): string | null {
+  const field = `Invalid "options.fonts.${fontName}" field`;
+  if (!URL.canParse(fontUrl)) return `${field}: must be a valid URL`;
+  if (new URL(fontUrl).protocol !== "https:") return `${field}: only https URLs are allowed`;
+  return null;
+}
+
+function parseFonts(fonts: unknown): { fonts: Record<string, string> } | { error: string } {
+  if (!isPlainObject(fonts)) {
+    return { error: 'Invalid "options.fonts" field: must be an object of string values' };
+  }
+  const validated: Record<string, string> = {};
+  for (const [fontName, fontUrl] of Object.entries(fonts)) {
+    if (typeof fontUrl !== "string") {
+      return { error: `Invalid "options.fonts.${fontName}" field: must be a string URL` };
+    }
+    const error = validateFontUrl(fontName, fontUrl);
+    if (error) return { error };
+    validated[fontName] = fontUrl;
+  }
+  return { fonts: validated };
+}
+
 function parseRenderOptions(value: unknown): { options: RenderOptions } | { error: string } {
   if (value === undefined) return { options: {} };
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+  if (!isPlainObject(value)) {
     return { error: 'Invalid "options" field: must be an object' };
   }
 
-  const record = value as Record<string, unknown>;
-  for (const key of Object.keys(record)) {
-    if (!ALLOWED_RENDER_OPTIONS.has(key)) {
-      return { error: `Invalid "options" field: unknown option "${key}"` };
-    }
+  const unknownKey = Object.keys(value).find((key) => !ALLOWED_RENDER_OPTIONS.has(key));
+  if (unknownKey !== undefined) {
+    return { error: `Invalid "options" field: unknown option "${unknownKey}"` };
   }
 
   const options: RenderOptions = {};
 
-  if ("fonts" in record) {
-    const fonts = record.fonts;
-    if (typeof fonts !== "object" || fonts === null || Array.isArray(fonts)) {
-      return { error: 'Invalid "options.fonts" field: must be an object of string values' };
-    }
-
-    for (const [fontName, fontUrl] of Object.entries(fonts)) {
-      if (typeof fontUrl !== "string") {
-        return {
-          error: `Invalid "options.fonts.${fontName}" field: must be a string URL`,
-        };
-      }
-
-      let parsedUrl: URL;
-      try {
-        parsedUrl = new URL(fontUrl);
-      } catch {
-        return { error: `Invalid "options.fonts.${fontName}" field: must be a valid URL` };
-      }
-
-      if (parsedUrl.protocol !== "https:") {
-        return {
-          error: `Invalid "options.fonts.${fontName}" field: only https URLs are allowed`,
-        };
-      }
-    }
-
-    options.fonts = fonts as Record<string, string>;
+  if ("fonts" in value) {
+    const fontsResult = parseFonts(value.fonts);
+    if ("error" in fontsResult) return fontsResult;
+    options.fonts = fontsResult.fonts;
   }
 
-  if ("keepComments" in record) {
-    if (typeof record.keepComments !== "boolean") {
-      return { error: 'Invalid "options.keepComments" field: must be a boolean' };
+  for (const key of BOOLEAN_RENDER_OPTIONS) {
+    if (!(key in value)) continue;
+    const flag = value[key];
+    if (typeof flag !== "boolean") {
+      return { error: `Invalid "options.${key}" field: must be a boolean` };
     }
-    options.keepComments = record.keepComments;
-  }
-
-  if ("minify" in record) {
-    if (typeof record.minify !== "boolean") {
-      return { error: 'Invalid "options.minify" field: must be a boolean' };
-    }
-    options.minify = record.minify;
+    options[key] = flag;
   }
 
   return { options };
+}
+
+function sendJson(res: ServerResponse, statusCode: number, body: unknown): void {
+  res.writeHead(statusCode, JSON_CT);
+  res.end(JSON.stringify(body));
+}
+
+type RenderRequest = { mjmlInput: string; options: RenderOptions };
+type RequestFailure = { statusCode: number; message: string };
+
+function bodyReadFailure(error: unknown): RequestFailure {
+  if (error instanceof BodyReadError && error.code === "BODY_TOO_LARGE") {
+    return { statusCode: 413, message: BODY_TOO_LARGE_MESSAGE };
+  }
+  if (error instanceof BodyReadError && error.code === "BODY_TIMEOUT") {
+    return { statusCode: 408, message: "Request body read timed out" };
+  }
+  return { statusCode: 422, message: "Failed to read request body" };
+}
+
+function parseRenderRequest(body: string): RenderRequest | RequestFailure {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return { statusCode: 422, message: "Invalid JSON body" };
+  }
+
+  if (!isPlainObject(parsed) || typeof parsed.mjml !== "string") {
+    return { statusCode: 422, message: 'Missing or invalid "mjml" field: must be a string' };
+  }
+
+  const optionsResult = parseRenderOptions(parsed.options);
+  if ("error" in optionsResult) {
+    return { statusCode: 422, message: optionsResult.error };
+  }
+  return { mjmlInput: parsed.mjml, options: optionsResult.options };
+}
+
+async function readRenderRequest(req: IncomingMessage): Promise<RenderRequest | RequestFailure> {
+  if (contentLengthExceedsLimit(req, MAX_RENDER_BODY_BYTES)) {
+    return { statusCode: 413, message: BODY_TOO_LARGE_MESSAGE };
+  }
+
+  let body: string;
+  try {
+    body = await readBody(req, MAX_RENDER_BODY_BYTES, BODY_READ_TIMEOUT_MS);
+  } catch (error) {
+    return bodyReadFailure(error);
+  }
+  return parseRenderRequest(body);
+}
+
+async function handleRender(
+  req: IncomingMessage,
+  res: ServerResponse,
+  renderWorker: RenderWorkerPool,
+  rateLimiter: SlidingWindowRateLimiter,
+): Promise<void> {
+  const clientId = req.socket.remoteAddress ?? "unknown";
+  if (!rateLimiter.allow(clientId)) {
+    sendJson(res, 429, { message: "Too many requests; please retry later" });
+    return;
+  }
+
+  const renderRequest = await readRenderRequest(req);
+  if ("statusCode" in renderRequest) {
+    sendJson(res, renderRequest.statusCode, { message: renderRequest.message });
+    return;
+  }
+
+  const abortController = new AbortController();
+  const onResponseClose = () => {
+    if (!res.writableEnded) abortController.abort();
+  };
+  res.once("close", onResponseClose);
+
+  try {
+    const { html, errors } = await renderWorker.render(
+      renderRequest.mjmlInput,
+      renderRequest.options,
+      abortController.signal,
+    );
+    sendJson(res, 200, { html, errors });
+  } catch (error) {
+    if (!(error instanceof RenderExecutionError)) {
+      sendJson(res, 500, { message: "Failed to render MJML" });
+      return;
+    }
+    if (error.statusCode === 499 && res.destroyed) return;
+    sendJson(res, error.statusCode, { message: error.message });
+  } finally {
+    res.off("close", onResponseClose);
+  }
 }
 
 function createRequestHandler(
@@ -527,145 +618,35 @@ function createRequestHandler(
   return async function requestHandler(req: IncomingMessage, res: ServerResponse) {
     const pathname = getPathname(req);
     if (pathname === null) {
-      res.writeHead(400, JSON_CT);
-      res.end(JSON.stringify({ message: "Invalid request URL" }));
+      sendJson(res, 400, { message: "Invalid request URL" });
       return;
     }
 
     if (pathname === "/health") {
-      res.writeHead(200, JSON_CT);
-      res.end(JSON.stringify({ status: "ok" }));
+      sendJson(res, 200, { status: "ok" });
       return;
     }
 
     if (!isAuthorized(req, apiKey)) {
-      res.writeHead(401, JSON_CT);
-      res.end(UNAUTHORIZED);
+      sendJson(res, 401, { message: "Unauthorized" });
       return;
     }
 
     if (pathname === "/" && req.method === "GET") {
-      res.writeHead(200, JSON_CT);
-      res.end(
-        JSON.stringify({
-          name: "node25-ts-api-server",
-          message: "API server is running",
-          endpoints: ["/health", "POST /v1/render"],
-        }),
-      );
+      sendJson(res, 200, {
+        name: "node25-ts-api-server",
+        message: "API server is running",
+        endpoints: ["/health", "POST /v1/render"],
+      });
       return;
     }
 
     if (pathname === "/v1/render" && req.method === "POST") {
-      const clientId = req.socket.remoteAddress ?? "unknown";
-      if (!rateLimiter.allow(clientId)) {
-        res.writeHead(429, JSON_CT);
-        res.end(JSON.stringify({ message: "Too many requests; please retry later" }));
-        return;
-      }
-
-      if (contentLengthExceedsLimit(req, MAX_RENDER_BODY_BYTES)) {
-        res.writeHead(413, JSON_CT);
-        res.end(
-          JSON.stringify({
-            message: `Request body is too large (max ${MAX_RENDER_BODY_BYTES} bytes)`,
-          }),
-        );
-        return;
-      }
-
-      let body: string;
-      try {
-        body = await readBody(req, MAX_RENDER_BODY_BYTES, BODY_READ_TIMEOUT_MS);
-      } catch (error) {
-        if (error instanceof BodyReadError && error.code === "BODY_TOO_LARGE") {
-          res.writeHead(413, JSON_CT);
-          res.end(
-            JSON.stringify({
-              message: `Request body is too large (max ${MAX_RENDER_BODY_BYTES} bytes)`,
-            }),
-          );
-          return;
-        }
-
-        if (error instanceof BodyReadError && error.code === "BODY_TIMEOUT") {
-          res.writeHead(408, JSON_CT);
-          res.end(JSON.stringify({ message: "Request body read timed out" }));
-          return;
-        }
-
-        res.writeHead(422, JSON_CT);
-        res.end(JSON.stringify({ message: "Failed to read request body" }));
-        return;
-      }
-
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(body);
-      } catch {
-        res.writeHead(422, JSON_CT);
-        res.end(JSON.stringify({ message: "Invalid JSON body" }));
-        return;
-      }
-
-      if (
-        typeof parsed !== "object" ||
-        parsed === null ||
-        !("mjml" in parsed) ||
-        typeof (parsed as Record<string, unknown>)["mjml"] !== "string"
-      ) {
-        res.writeHead(422, JSON_CT);
-        res.end(JSON.stringify({ message: 'Missing or invalid "mjml" field: must be a string' }));
-        return;
-      }
-
-      const parsedRecord = parsed as Record<string, unknown>;
-      const mjmlInput = parsedRecord.mjml as string;
-      const optionsResult = parseRenderOptions(parsedRecord.options);
-      if ("error" in optionsResult) {
-        res.writeHead(422, JSON_CT);
-        res.end(JSON.stringify({ message: optionsResult.error }));
-        return;
-      }
-
-      const renderOptions = optionsResult.options;
-
-      const abortController = new AbortController();
-      const onResponseClose = () => {
-        if (!res.writableEnded) abortController.abort();
-      };
-      res.once("close", onResponseClose);
-
-      let renderResult: {
-        html: string;
-        errors: Array<{ tagName: string; message: string; line: number }>;
-      };
-      try {
-        renderResult = await renderWorker.render(mjmlInput, renderOptions, abortController.signal);
-      } catch (error) {
-        if (error instanceof RenderExecutionError) {
-          if (error.statusCode === 499 && res.destroyed) {
-            return;
-          }
-          res.writeHead(error.statusCode, JSON_CT);
-          res.end(JSON.stringify({ message: error.message }));
-          return;
-        }
-
-        res.writeHead(500, JSON_CT);
-        res.end(JSON.stringify({ message: "Failed to render MJML" }));
-        return;
-      } finally {
-        res.off("close", onResponseClose);
-      }
-
-      res.writeHead(200, JSON_CT);
-      res.end(JSON.stringify({ html: renderResult.html, errors: renderResult.errors }));
+      await handleRender(req, res, renderWorker, rateLimiter);
       return;
     }
 
-    res.writeHead(404, JSON_CT);
-    res.end(JSON.stringify({ message: "Not found" }));
+    sendJson(res, 404, { message: "Not found" });
   };
 }
 
@@ -674,8 +655,10 @@ export type ApiServer = Server & { pool: RenderWorkerPool };
 export function createApiServer(apiKey: string, options: ApiServerOptions = {}): ApiServer {
   const renderWorker = new RenderWorkerPool(options);
   const rateLimiter = new SlidingWindowRateLimiter(options);
-  const server = createServer(createRequestHandler(apiKey, renderWorker, rateLimiter)) as ApiServer;
-  server.pool = renderWorker;
+  const server: ApiServer = Object.assign(
+    createServer(createRequestHandler(apiKey, renderWorker, rateLimiter)),
+    { pool: renderWorker },
+  );
   server.requestTimeout = BODY_READ_TIMEOUT_MS + 5_000;
   server.headersTimeout = BODY_READ_TIMEOUT_MS + 5_000;
   server.on("close", () => {

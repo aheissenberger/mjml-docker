@@ -1,4 +1,5 @@
-import { createApiServer } from "./server.ts";
+import { createApiServer, type ApiServerOptions } from "./server.ts";
+import { EnvConfigError, parseIntEnv, parsePort } from "./env.ts";
 import { availableParallelism } from "node:os";
 import type { Server } from "node:http";
 
@@ -9,79 +10,60 @@ const MAX_RATE_LIMIT_WINDOW_MS = 3_600_000;
 const MAX_RATE_LIMIT_MAX_REQUESTS = 1_000_000;
 const SHUTDOWN_GRACE_MS = 8_000;
 
-function resolvePort(value: string | undefined): number {
-  if (value === undefined) return 3000;
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65_535) {
-    process.stderr.write(`Error: PORT must be an integer between 1 and 65535, got "${value}".\n`);
-    process.exit(1);
-  }
-  return parsed;
+function exitWithError(message: string): never {
+  process.stderr.write(`Error: ${message}\n`);
+  process.exit(1);
 }
 
-function resolvePositiveIntEnv(
-  name: string,
-  value: string | undefined,
-  allowZero = false,
-  maxValue?: number,
-): number | undefined {
-  if (value === undefined) return undefined;
-  const parsed = Number.parseInt(value, 10);
-  const min = allowZero ? 0 : 1;
-
-  if (!Number.isInteger(parsed) || parsed < min) {
-    const rangeText = allowZero ? "an integer >= 0" : "an integer >= 1";
-    process.stderr.write(`Error: ${name} must be ${rangeText}, got "${value}".\n`);
-    process.exit(1);
-  }
-
-  if (maxValue !== undefined && parsed > maxValue) {
-    process.stderr.write(`Error: ${name} must be <= ${maxValue}, got "${value}".\n`);
-    process.exit(1);
-  }
-
-  return parsed;
+function readEnvConfig(): { port: number; options: ApiServerOptions } {
+  const env = process.env;
+  return {
+    port: parsePort(env.PORT),
+    options: {
+      renderWorkerCount: parseIntEnv("RENDER_WORKERS", env.RENDER_WORKERS, 1, MAX_RENDER_WORKERS),
+      maxRenderQueueSize: parseIntEnv(
+        "RENDER_QUEUE_SIZE",
+        env.RENDER_QUEUE_SIZE,
+        0,
+        MAX_RENDER_QUEUE_SIZE,
+      ),
+      renderTimeoutMs: parseIntEnv(
+        "RENDER_TIMEOUT_MS",
+        env.RENDER_TIMEOUT_MS,
+        1,
+        MAX_RENDER_TIMEOUT_MS,
+      ),
+      rateLimitMaxRequests: parseIntEnv(
+        "RATE_LIMIT_MAX_REQUESTS",
+        env.RATE_LIMIT_MAX_REQUESTS,
+        1,
+        MAX_RATE_LIMIT_MAX_REQUESTS,
+      ),
+      rateLimitWindowMs: parseIntEnv(
+        "RATE_LIMIT_WINDOW_MS",
+        env.RATE_LIMIT_WINDOW_MS,
+        1,
+        MAX_RATE_LIMIT_WINDOW_MS,
+      ),
+    },
+  };
 }
 
 const apiKey = process.env.API_KEY;
 if (!apiKey) {
-  process.stderr.write("Error: API_KEY environment variable is not set. Server cannot start.\n");
-  process.exit(1);
+  exitWithError("API_KEY environment variable is not set. Server cannot start.");
 }
 
-const port = resolvePort(process.env.PORT);
-const server = createApiServer(apiKey, {
-  renderWorkerCount: resolvePositiveIntEnv(
-    "RENDER_WORKERS",
-    process.env.RENDER_WORKERS,
-    false,
-    MAX_RENDER_WORKERS,
-  ),
-  maxRenderQueueSize: resolvePositiveIntEnv(
-    "RENDER_QUEUE_SIZE",
-    process.env.RENDER_QUEUE_SIZE,
-    true,
-    MAX_RENDER_QUEUE_SIZE,
-  ),
-  renderTimeoutMs: resolvePositiveIntEnv(
-    "RENDER_TIMEOUT_MS",
-    process.env.RENDER_TIMEOUT_MS,
-    false,
-    MAX_RENDER_TIMEOUT_MS,
-  ),
-  rateLimitMaxRequests: resolvePositiveIntEnv(
-    "RATE_LIMIT_MAX_REQUESTS",
-    process.env.RATE_LIMIT_MAX_REQUESTS,
-    false,
-    MAX_RATE_LIMIT_MAX_REQUESTS,
-  ),
-  rateLimitWindowMs: resolvePositiveIntEnv(
-    "RATE_LIMIT_WINDOW_MS",
-    process.env.RATE_LIMIT_WINDOW_MS,
-    false,
-    MAX_RATE_LIMIT_WINDOW_MS,
-  ),
-});
+let config: { port: number; options: ApiServerOptions };
+try {
+  config = readEnvConfig();
+} catch (error) {
+  if (!(error instanceof EnvConfigError)) throw error;
+  exitWithError(error.message);
+}
+
+const { port } = config;
+const server = createApiServer(apiKey, config.options);
 
 function setupGracefulShutdown(httpServer: Server) {
   let shuttingDown = false;

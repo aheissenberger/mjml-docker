@@ -2,8 +2,9 @@
  * Validates spec/requirements/*.md files against the required schema.
  * Usage: node scripts/spec-ledger/validate-req-files.ts
  */
-import { readdir, readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { readdir } from "node:fs/promises";
+
+import { checkRequiredKeys, readSpecFile, reportResult } from "./lib.ts";
 
 const DIR = "spec/requirements";
 const REQUIRED_KEYS = [
@@ -20,51 +21,22 @@ const REQUIRED_KEYS = [
 const VALID_STATUSES = new Set(["Proposed", "In Progress", "Done"]);
 const REQUIRED_SECTIONS = ["## Summary", "## Acceptance Criteria", "## Verification", "## Notes"];
 const FILENAME_RE = /^[A-Z]+-\d{3}\.md$/;
-const MAX_ERRORS = 20;
-
-function parseFrontmatter(content: string): Record<string, string> | null {
-  if (!content.startsWith("---\n")) return null;
-  const end = content.indexOf("\n---\n", 4);
-  if (end === -1) return null;
-  const yaml = content.slice(4, end);
-  const fm: Record<string, string> = {};
-  for (const line of yaml.split("\n")) {
-    const i = line.indexOf(":");
-    if (i === -1) continue;
-    fm[line.slice(0, i).trim()] = line.slice(i + 1).trim();
-  }
-  return fm;
-}
 
 const files = await readdir(DIR);
 const reqFiles = files.filter((f) => f !== "index.md" && f.endsWith(".md")).sort();
 const errors: string[] = [];
 
 for (const file of reqFiles) {
-  const path = join(DIR, file);
-
-  if (!FILENAME_RE.test(file)) {
-    errors.push(`${path}: filename must match <TYPE>-NNN.md`);
-    continue;
-  }
-
-  const content = await readFile(path, "utf-8");
-  const fm = parseFrontmatter(content);
-  if (!fm) {
-    errors.push(`${path}: missing or malformed YAML frontmatter`);
-    continue;
-  }
+  const spec = await readSpecFile(DIR, file, FILENAME_RE, "<TYPE>-NNN.md", errors);
+  if (!spec) continue;
+  const { path, content, fm } = spec;
 
   const expectedId = file.replace(".md", "");
   if (fm.id !== expectedId) {
     errors.push(`${path}: frontmatter id "${fm.id}" does not match filename "${expectedId}"`);
   }
 
-  for (const key of REQUIRED_KEYS) {
-    if (!(key in fm)) {
-      errors.push(`${path}: missing required frontmatter key "${key}"`);
-    }
-  }
+  checkRequiredKeys(path, fm, REQUIRED_KEYS, errors);
 
   if (fm.status !== undefined && !VALID_STATUSES.has(fm.status)) {
     errors.push(
@@ -90,17 +62,4 @@ for (const file of reqFiles) {
   }
 }
 
-for (const msg of errors.slice(0, MAX_ERRORS)) {
-  console.error(`[ERROR] ${msg}`);
-}
-if (errors.length > MAX_ERRORS) {
-  console.error(`... and ${errors.length - MAX_ERRORS} more error(s)`);
-}
-
-if (errors.length > 0) {
-  console.error(
-    `\nvalidate:req-files FAILED — ${errors.length} error(s) across ${reqFiles.length} file(s)`,
-  );
-  process.exit(1);
-}
-console.log(`validate:req-files PASSED — ${reqFiles.length} file(s) OK`);
+reportResult("validate:req-files", errors, reqFiles.length, "file");
