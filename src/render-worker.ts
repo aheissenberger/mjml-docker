@@ -40,7 +40,7 @@ parentPort.on("message", async (message: RenderRequest) => {
     if (options.fonts !== undefined) mjmlOptions.fonts = options.fonts;
     if (options.keepComments !== undefined) mjmlOptions.keepComments = options.keepComments;
 
-    const result = mjml2html(mjmlInput, mjmlOptions);
+    const result = await mjml2html(mjmlInput, mjmlOptions);
     let htmlOutput = result.html;
 
     if (options.minify === true) {

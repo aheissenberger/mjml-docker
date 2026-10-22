@@ -1,7 +1,7 @@
 {
   "$schema": "https://oxc.rs/schemas/oxlintrc.json",
   "plugins": ["typescript"],
-  "rules": {
+  "categories": {
     "correctness": "error",
     "suspicious": "warn"
   }
