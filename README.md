@@ -1,12 +1,12 @@
 # MJML Render API
 
 A minimal, self-hosted REST API that converts [MJML](https://mjml.io)
-email templates to responsive HTML. Built on Node.js 25+ with
+email templates to responsive HTML. Built on Node.js 26+ with
 native TypeScript support — no build step required.
 
 ## Requirements
 
-- Node.js 25 or newer
+- Node.js 26 or newer
 - pnpm
 
 ## Setup

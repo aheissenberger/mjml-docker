@@ -2,7 +2,7 @@
 
 ## Runtime
 
-- Node.js 25+
+- Node.js 26+
 - TypeScript (native type stripping, no build step)
 - pnpm package manager
 
@@ -28,7 +28,7 @@ Client → HTTP → node25-ts-api-server (port 3000)
 ## Container Topology (FR-006, FR-007)
 
 ```
-Client → HTTP → mjml-docker container (node:25-trixie-slim, port 3000)
+Client → HTTP → mjml-docker container (node:26-trixie-slim, port 3000)
 ```
 
 Orchestrated via `compose.yaml` with health check and `restart: unless-stopped` policy.
@@ -36,5 +36,5 @@ Orchestrated via `compose.yaml` with health check and `restart: unless-stopped` 
 ## Ownership
 
 - Language: TypeScript (strict, NodeNext ESM)
-- Runtime: Node.js 25+
+- Runtime: Node.js 26+
 - Tooling: oxfmt (format), oxlint (lint + type-aware), tsc (typecheck), node:test (tests)

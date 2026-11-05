@@ -44,8 +44,8 @@ prevent timing attacks (`node:crypto` `timingSafeEqual`).
 
 ### FR-006 Dockerfile
 
-The repository must ship a multi-stage `Dockerfile` based on `node:25-trixie-slim`.
-The builder stage installs dependencies (pnpm installed via `npm install -g pnpm@10`);
+The repository must ship a multi-stage `Dockerfile` based on `node:26-trixie-slim`.
+The builder stage installs dependencies (pnpm installed via `npm install -g pnpm@12`);
 the runtime stage copies only production files, runs as the non-root `node` user, sets
 `NODE_ENV=production`, and exposes port 3000. A `.dockerignore` file excludes
 non-runtime artefacts (`.git`, `spec/`, `test/`, etc.).

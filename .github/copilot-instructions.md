@@ -12,7 +12,7 @@
 
 ## Runtime Conventions
 
-- This project targets Node.js 25+ and runs `.ts` files directly with Node's native type stripping.
+- This project targets Node.js 26+ and runs `.ts` files directly with Node's native type stripping.
 - Do not introduce `ts-node`, `tsx`, Babel, or custom loaders for server execution.
 - Prefer Node built-in modules (for example `node:http`, `node:test`) before adding third-party dependencies.
 
