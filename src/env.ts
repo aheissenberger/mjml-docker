@@ -1,7 +1,24 @@
+import { readFileSync } from "node:fs";
+
 const DEFAULT_PORT = 3000;
 const MAX_PORT = 65_535;
 
 export class EnvConfigError extends Error {}
+
+export function readApiKey(
+  apiKey: string | undefined,
+  apiKeyFile: string | undefined,
+): string | undefined {
+  if (!apiKeyFile) return apiKey || undefined;
+  let key: string;
+  try {
+    key = readFileSync(apiKeyFile, "utf8").trim();
+  } catch {
+    throw new EnvConfigError(`API_KEY_FILE could not be read: "${apiKeyFile}".`);
+  }
+  if (!key) throw new EnvConfigError(`API_KEY_FILE is empty: "${apiKeyFile}".`);
+  return key;
+}
 
 export function parsePort(value: string | undefined): number {
   if (value === undefined) return DEFAULT_PORT;

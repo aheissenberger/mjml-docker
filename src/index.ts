@@ -1,5 +1,5 @@
 import { createApiServer, type ApiServerOptions } from "./server.ts";
-import { EnvConfigError, parseIntEnv, parsePort } from "./env.ts";
+import { EnvConfigError, parseIntEnv, parsePort, readApiKey } from "./env.ts";
 import { availableParallelism } from "node:os";
 import type { Server } from "node:http";
 
@@ -49,17 +49,18 @@ function readEnvConfig(): { port: number; options: ApiServerOptions } {
   };
 }
 
-const apiKey = process.env.API_KEY;
-if (!apiKey) {
-  exitWithError("API_KEY environment variable is not set. Server cannot start.");
-}
-
+let apiKey: string | undefined;
 let config: { port: number; options: ApiServerOptions };
 try {
+  apiKey = readApiKey(process.env.API_KEY, process.env.API_KEY_FILE);
   config = readEnvConfig();
 } catch (error) {
   if (!(error instanceof EnvConfigError)) throw error;
   exitWithError(error.message);
+}
+
+if (!apiKey) {
+  exitWithError("API_KEY environment variable is not set. Server cannot start.");
 }
 
 const { port } = config;

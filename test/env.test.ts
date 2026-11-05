@@ -1,7 +1,44 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
-import { EnvConfigError, parseIntEnv, parsePort } from "../src/env.ts";
+import { EnvConfigError, parseIntEnv, parsePort, readApiKey } from "../src/env.ts";
+
+// ─── FR-005: API key source ───────────────────────────────────────────────────
+
+void test("readApiKey returns API_KEY when no file is set", () => {
+  assert.equal(readApiKey("env-key", undefined), "env-key");
+  assert.equal(readApiKey("env-key", ""), "env-key");
+});
+
+void test("readApiKey returns undefined when no key is set", () => {
+  assert.equal(readApiKey(undefined, undefined), undefined);
+  assert.equal(readApiKey("", ""), undefined);
+});
+
+void test("readApiKey prefers the trimmed file content over API_KEY", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "mjml-api-key-"));
+  t.after(() => rmSync(dir, { recursive: true }));
+  const file = join(dir, "api_key");
+  writeFileSync(file, "file-key\n");
+  assert.equal(readApiKey("env-key", file), "file-key");
+});
+
+void test("readApiKey rejects a missing file without exposing a key", () => {
+  assert.throws(() => readApiKey("env-key", "/does/not/exist"), {
+    message: 'API_KEY_FILE could not be read: "/does/not/exist".',
+  });
+});
+
+void test("readApiKey rejects an empty file", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "mjml-api-key-"));
+  t.after(() => rmSync(dir, { recursive: true }));
+  const file = join(dir, "api_key");
+  writeFileSync(file, " \n");
+  assert.throws(() => readApiKey("env-key", file), EnvConfigError);
+});
 
 // ─── FR-001: Startup env validation ───────────────────────────────────────────
 
