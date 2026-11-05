@@ -58,7 +58,14 @@ pnpm gh:docker-publish -- <ref>
 ```
 
 Use `<ref>` as a branch or tag name (for example `master` or `v1.1.0`). Each run pushes a tag
-named after the ref. Only runs from `master` also update `latest`.
+named after the ref, with `/` replaced by `-`. Only runs from `master` or a `v*` tag also update
+`latest`.
+
+To check the build and the resolved tags without a push:
+
+```bash
+gh workflow run docker-publish.yml --ref <ref> -f dry_run=true
+```
 
 Reference the published image as:
 
@@ -121,6 +128,12 @@ share one rate-limit bucket, because the server uses the socket address.
 The service runs with a read-only filesystem, no Linux capabilities, and
 `no-new-privileges`. Set `MEM_LIMIT`, `CPU_LIMIT`, and `PIDS_LIMIT` in `.env` to change the
 container limits (defaults: `1g`, `2`, `256`).
+
+Under overload the API returns HTTP 503 with `Rendering timed out`. `RENDER_TIMEOUT_MS` includes the
+wait in the queue. More workers and CPUs reduce these errors. In a test with 40 parallel requests of
+880 KB, 2 workers with 2 CPUs returned 18 errors, and 4 workers with 4 CPUs and `2g` returned none.
+
+The runtime image is distroless, so it has no shell or package manager. It runs as UID 65532.
 
 #### Local Presets
 

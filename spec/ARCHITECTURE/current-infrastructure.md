@@ -28,7 +28,7 @@ Client → HTTP → node25-ts-api-server (port 3000)
 ## Container Topology (FR-006, FR-007)
 
 ```
-Client → HTTP → mjml-docker container (node:26-trixie-slim, port 3000)
+Client → HTTP → mjml-docker container (distroless Node 26, port 3000)
 ```
 
 Orchestrated via `compose.yaml` with health check and `restart: unless-stopped` policy.

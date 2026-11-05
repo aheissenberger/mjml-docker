@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (amended 2026-03-25 — see Amendment below; Node version superseded by ADR-0005)
+Accepted (amended 2026-03-25 — see Amendment below; Node version superseded by ADR-0005, runtime image by ADR-0006)
 
 ## Date
 
