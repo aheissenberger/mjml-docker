@@ -4,15 +4,20 @@ updates:
     directory: "/"
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 3
     open-pull-requests-limit: 10
     labels:
       - dependencies
-    dependency-type: production
+    allow:
+      - dependency-type: production
 
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 3
     open-pull-requests-limit: 10
     labels:
       - dependencies
