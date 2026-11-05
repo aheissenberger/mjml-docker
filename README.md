@@ -25,6 +25,9 @@ export API_KEY="your-secret-api-key" # required
 The server accepts any non-empty key. Use a strong key outside local development, for
 example from `openssl rand -hex 32`.
 
+To keep the key out of the process environment and `docker inspect`, set `API_KEY_FILE` to the path of
+a file that contains the key. `API_KEY_FILE` takes priority over `API_KEY`.
+
 ## Run
 
 ```bash
@@ -135,6 +138,16 @@ wait in the queue. More workers and CPUs reduce these errors. In a test with 40 
 
 The runtime image is distroless, so it has no shell or package manager. It runs as UID 65532.
 
+#### API key from a file
+
+`compose.secrets.yaml` reads the key from a file. The container user (UID 65532) must be able to read
+the file.
+
+```bash
+export API_KEY_SECRET_FILE=/etc/mjml-docker/api_key
+docker compose -f compose.yaml -f compose.secrets.yaml up -d --build
+```
+
 #### Local Presets
 
 Development-style preset (fewer workers, shorter timeout):
@@ -187,7 +200,7 @@ docker compose down
 
 Troubleshooting:
 
-- Missing `API_KEY`:
+- Missing `API_KEY`: the container exits with an error in `docker compose logs api` and restarts.
 
   ```bash
   cp .env.example .env

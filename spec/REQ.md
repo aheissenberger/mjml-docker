@@ -38,7 +38,7 @@ Per-client rate limiting is enforced and overload from client bursts returns HTT
 ### FR-005 API Key Authentication
 
 All non-health endpoints must be protected by a static API key supplied as
-`Authorization: Bearer <key>`. The key is read from the `API_KEY` environment variable.
+`Authorization: Bearer <key>`. The key is read from the file named by `API_KEY_FILE` if set, otherwise from the `API_KEY` environment variable.
 Unauthorised requests receive HTTP 401. Key comparison uses constant-time equality to
 prevent timing attacks (`node:crypto` `timingSafeEqual`).
 
