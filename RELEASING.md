@@ -36,6 +36,11 @@ git push origin v1.0.0
 
 - Tag push triggers the release workflow.
 - Verify the generated GitHub Release notes and edit if needed.
+- Publish the container image, which also updates `latest`:
+
+  ```bash
+  pnpm gh:docker-publish -- v1.0.0
+  ```
 
 ## 4. Post-release checks
 

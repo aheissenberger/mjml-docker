@@ -44,14 +44,15 @@ prevent timing attacks (`node:crypto` `timingSafeEqual`).
 
 ### FR-006 Dockerfile
 
-The repository must ship a multi-stage `Dockerfile` based on `node:26-trixie-slim`.
-The builder stage installs dependencies (pnpm installed via `npm install -g pnpm@12`);
-the runtime stage copies only production files, runs as the non-root `node` user, sets
+The repository must ship a multi-stage `Dockerfile` with base images pinned by digest: `node:26-trixie-slim` for the
+dependency stage and `gcr.io/distroless/nodejs26-debian13:nonroot` for the runtime stage.
+The builder stage installs dependencies (pnpm installed via `npm install -g pnpm@12.16.1`);
+the runtime stage copies only production files, runs as the non-root `nonroot` user, sets
 `NODE_ENV=production`, and exposes port 3000. A `.dockerignore` file excludes
 non-runtime artefacts (`.git`, `spec/`, `test/`, etc.).
 Production dependencies are prepared in a build stage and copied into runtime without
 running package manager install commands in the final image stage.
-Application files in the runtime stage stay root-owned, so the `node` user cannot modify them.
+Application files in the runtime stage stay root-owned, so the runtime user cannot modify them.
 
 ### FR-007 Docker Compose Runtime
 
@@ -81,4 +82,4 @@ image to GitHub Container Registry (`ghcr.io`) via a manually triggered run
 (`workflow_dispatch`). A package script should trigger this workflow through GitHub CLI
 (`gh workflow run`) so operators can dispatch image publishing from local development
 environments. The workflow should use repository-scoped `GITHUB_TOKEN` authentication with
-`packages: write` permission and push a versioned image tag, and `latest` for runs from `master` only.
+`packages: write` permission and push a versioned image tag, and `latest` for runs from `master` or a `v*` tag only.
