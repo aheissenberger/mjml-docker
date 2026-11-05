@@ -11,13 +11,12 @@ RUN npm install -g pnpm@12 && pnpm install --prod --frozen-lockfile
 # Runtime stage: copies production dependencies and runs src directly
 FROM node:26-trixie-slim
 
-RUN mkdir -p /app && chown node:node /app
-
 WORKDIR /app
 
+# Application files stay root-owned so the runtime user cannot modify them.
 COPY --from=deps-prod /app/package.json /app/pnpm-lock.yaml ./
 COPY --from=deps-prod /app/node_modules ./node_modules
-COPY --chown=node:node src ./src
+COPY src ./src
 
 ENV NODE_ENV=production
 

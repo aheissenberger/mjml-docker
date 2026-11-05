@@ -22,6 +22,9 @@ Set configuration variables in `.env` (or export them in your shell):
 export API_KEY="your-secret-api-key" # required
 ```
 
+The server accepts any non-empty key. Use a strong key outside local development, for
+example from `openssl rand -hex 32`.
+
 ## Run
 
 ```bash
@@ -43,7 +46,7 @@ Optional worker-pool tuning:
 ```bash
 docker build -t mjml-api .
 
-docker run -p 3000:3000 -e API_KEY="your-secret-api-key" mjml-api
+docker run -p 127.0.0.1:3000:3000 -e API_KEY="your-secret-api-key" mjml-api
 ```
 
 ### Use Published GitHub Image (GHCR)
@@ -71,7 +74,7 @@ docker pull ghcr.io/aheissenberger/mjml-docker:v1.1.0
 # Or use latest
 docker pull ghcr.io/aheissenberger/mjml-docker:latest
 
-docker run --rm -p 3000:3000 \
+docker run --rm -p 127.0.0.1:3000:3000 \
   -e API_KEY="your-secret-api-key" \
   ghcr.io/aheissenberger/mjml-docker:latest
 ```
@@ -86,7 +89,7 @@ services:
       API_KEY: ${API_KEY:?API_KEY is required}
       PORT: ${PORT:-3000}
     ports:
-      - "${PORT:-3000}:${PORT:-3000}"
+      - "127.0.0.1:${PORT:-3000}:${PORT:-3000}"
 ```
 
 If the package is private, authenticate first:
@@ -105,6 +108,14 @@ passes the configured variables into the `api` service via
 cp .env.example .env
 docker compose up --build
 ```
+
+`compose.yaml` publishes the port on `127.0.0.1` only, because the API uses plain HTTP and
+sends the API key in a header. For remote access, put a TLS proxy in front of the service.
+All clients behind a proxy share one rate-limit bucket, because the server uses the socket address.
+
+The service runs with a read-only filesystem, no Linux capabilities, and
+`no-new-privileges`. Set `MEM_LIMIT`, `CPU_LIMIT`, and `PIDS_LIMIT` in `.env` to change the
+container limits (defaults: `1g`, `2`, `256`).
 
 #### Local Presets
 
@@ -136,6 +147,8 @@ RENDER_QUEUE_SIZE=128
 RENDER_TIMEOUT_MS=30000
 RATE_LIMIT_MAX_REQUESTS=240
 RATE_LIMIT_WINDOW_MS=60000
+MEM_LIMIT=2g
+CPU_LIMIT=4
 EOF
 docker compose up -d --build
 ```

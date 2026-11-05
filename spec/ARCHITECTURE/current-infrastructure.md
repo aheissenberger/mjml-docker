@@ -32,6 +32,8 @@ Client → HTTP → mjml-docker container (node:26-trixie-slim, port 3000)
 ```
 
 Orchestrated via `compose.yaml` with health check and `restart: unless-stopped` policy.
+The service publishes its port on `127.0.0.1` only, with resource limits, a read-only root
+filesystem, no Linux capabilities, and `no-new-privileges`. Remote access needs a TLS proxy.
 
 ## Ownership
 
