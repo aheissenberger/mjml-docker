@@ -12,8 +12,8 @@ services:
       RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-120}
       RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-60000}
     ports:
-      # Loopback only: the API uses plain HTTP. Put a TLS proxy in front for remote access.
-      - "127.0.0.1:${PORT:-3000}:${PORT:-3000}"
+      # Set BIND_ADDRESS to limit the host interface. Without it, Docker publishes on all interfaces.
+      - "${BIND_ADDRESS:+${BIND_ADDRESS}:}${PORT:-3000}:${PORT:-3000}"
     mem_limit: ${MEM_LIMIT:-1g}
     cpus: ${CPU_LIMIT:-2}
     pids_limit: ${PIDS_LIMIT:-256}

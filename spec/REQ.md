@@ -62,8 +62,8 @@ started and monitored with standard `docker compose` workflows.
 A sample `.env.example` must document required and optional runtime variables.
 Compose usage should load `.env` automatically and document development vs production-style presets.
 The healthcheck probe must align with the configured in-container `PORT` so non-default ports remain healthy.
-The service must publish its port on `127.0.0.1` only, set memory, CPU, and process limits, use a
-read-only root filesystem, drop all Linux capabilities, and set `no-new-privileges`.
+The service must let `BIND_ADDRESS` limit the published host interface, set memory, CPU, and process
+limits, use a read-only root filesystem, drop all Linux capabilities, and set `no-new-privileges`.
 
 ### FR-008 Request-Scoped MJML Options
 

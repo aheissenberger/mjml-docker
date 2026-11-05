@@ -46,7 +46,7 @@ Optional worker-pool tuning:
 ```bash
 docker build -t mjml-api .
 
-docker run -p 127.0.0.1:3000:3000 -e API_KEY="your-secret-api-key" mjml-api
+docker run -p 3000:3000 -e API_KEY="your-secret-api-key" mjml-api
 ```
 
 ### Use Published GitHub Image (GHCR)
@@ -75,7 +75,7 @@ docker pull ghcr.io/aheissenberger/mjml-docker:v1.1.0
 # Or use latest
 docker pull ghcr.io/aheissenberger/mjml-docker:latest
 
-docker run --rm -p 127.0.0.1:3000:3000 \
+docker run --rm -p 3000:3000 \
   -e API_KEY="your-secret-api-key" \
   ghcr.io/aheissenberger/mjml-docker:latest
 ```
@@ -90,7 +90,7 @@ services:
       API_KEY: ${API_KEY:?API_KEY is required}
       PORT: ${PORT:-3000}
     ports:
-      - "127.0.0.1:${PORT:-3000}:${PORT:-3000}"
+      - "${PORT:-3000}:${PORT:-3000}"
 ```
 
 If the package is private, authenticate first:
@@ -110,9 +110,13 @@ cp .env.example .env
 docker compose up --build
 ```
 
-`compose.yaml` publishes the port on `127.0.0.1` only, because the API uses plain HTTP and
-sends the API key in a header. For remote access, put a TLS proxy in front of the service.
-All clients behind a proxy share one rate-limit bucket, because the server uses the socket address.
+`compose.yaml` publishes the port on all host interfaces by default. Set `BIND_ADDRESS` in `.env`
+to limit it, for example `BIND_ADDRESS=127.0.0.1`.
+
+**The API uses plain HTTP and has no TLS.** The API key and all MJML content travel unencrypted.
+Open the port only in a trusted network or behind a firewall, and note that ports published by
+Docker often bypass `ufw`. Use a TLS proxy on untrusted networks. All clients behind a proxy
+share one rate-limit bucket, because the server uses the socket address.
 
 The service runs with a read-only filesystem, no Linux capabilities, and
 `no-new-privileges`. Set `MEM_LIMIT`, `CPU_LIMIT`, and `PIDS_LIMIT` in `.env` to change the
