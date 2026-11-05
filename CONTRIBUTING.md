@@ -4,7 +4,7 @@ Thanks for contributing.
 
 ## Prerequisites
 
-- Node.js 25+
+- Node.js 26+
 - pnpm
 
 ## Setup

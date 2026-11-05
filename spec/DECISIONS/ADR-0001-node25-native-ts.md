@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted (Node version superseded by ADR-0005)
 
 ## Date
 

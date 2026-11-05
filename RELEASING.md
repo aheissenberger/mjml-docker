@@ -6,7 +6,7 @@ This document defines the release process for this repository.
 
 - Push access to the repository
 - Green CI on the release commit
-- Local environment with Node.js 25+ and pnpm
+- Local environment with Node.js 26+ and pnpm
 
 ## 1. Prepare release changes
 
