@@ -81,4 +81,4 @@ image to GitHub Container Registry (`ghcr.io`) via a manually triggered run
 (`workflow_dispatch`). A package script should trigger this workflow through GitHub CLI
 (`gh workflow run`) so operators can dispatch image publishing from local development
 environments. The workflow should use repository-scoped `GITHUB_TOKEN` authentication with
-`packages: write` permission and push both a versioned image tag and `latest`.
+`packages: write` permission and push a versioned image tag, and `latest` for runs from `master` only.

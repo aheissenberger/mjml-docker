@@ -57,7 +57,8 @@ Publish first (manual dispatch):
 pnpm gh:docker-publish -- <ref>
 ```
 
-Use `<ref>` as a branch or tag name (for example `master` or `v1.1.0`).
+Use `<ref>` as a branch or tag name (for example `master` or `v1.1.0`). Each run pushes a tag
+named after the ref. Only runs from `master` also update `latest`.
 
 Reference the published image as:
 
