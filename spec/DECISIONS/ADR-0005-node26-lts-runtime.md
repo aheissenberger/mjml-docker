@@ -22,11 +22,11 @@ We will use Node 26 LTS as the minimum runtime and `node:26-trixie-slim` as the 
 
 ## Alternatives considered
 
-| Option                | Reason for rejection                                       |
-| --------------------- | ---------------------------------------------------------- |
-| Stay on Node 25       | Node 25 gets no security fixes.                            |
-| Move to Node 24 LTS   | Node 24 support ends on 2028-04-30, one year before Node 26. |
-| Move to Node 27       | Node 27 has only alpha releases.                           |
+| Option              | Reason for rejection                                         |
+| ------------------- | ------------------------------------------------------------ |
+| Stay on Node 25     | Node 25 gets no security fixes.                              |
+| Move to Node 24 LTS | Node 24 support ends on 2028-04-30, one year before Node 26. |
+| Move to Node 27     | Node 27 has only alpha releases.                             |
 
 ## Consequences
 
