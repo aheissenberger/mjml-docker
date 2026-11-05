@@ -10,4 +10,4 @@
 | FR-006      | Dockerfile, .dockerignore                          | docker build, /health check  | Multi-stage image with prod dependency stage and no runtime installer                                               |
 | FR-007      | compose.yaml, README.md, .env.example              | docker compose config        | Healthcheck + restart policy + `.env` auto-load + runtime presets + `PORT`-aligned probe                            |
 | FR-008      | src/server.ts, docs/api.md                         | test/server.test.ts          | Options allowlist with safe `minify` post-process + strict HTTPS-only font URL (http:// and all non-HTTPS rejected) |
-| FR-009      | .github/workflows/docker-publish.yml, package.json | workflow_dispatch            | GH CLI script dispatches manual GHCR publish; pushes version + `latest`                                             |
+| FR-009      | .github/workflows/docker-publish.yml, package.json | workflow_dispatch            | GH CLI script dispatches manual GHCR publish; pushes version, and `latest` from master only                         |
