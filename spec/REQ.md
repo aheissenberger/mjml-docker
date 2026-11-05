@@ -51,6 +51,7 @@ the runtime stage copies only production files, runs as the non-root `node` user
 non-runtime artefacts (`.git`, `spec/`, `test/`, etc.).
 Production dependencies are prepared in a build stage and copied into runtime without
 running package manager install commands in the final image stage.
+Application files in the runtime stage stay root-owned, so the `node` user cannot modify them.
 
 ### FR-007 Docker Compose Runtime
 
@@ -61,6 +62,8 @@ started and monitored with standard `docker compose` workflows.
 A sample `.env.example` must document required and optional runtime variables.
 Compose usage should load `.env` automatically and document development vs production-style presets.
 The healthcheck probe must align with the configured in-container `PORT` so non-default ports remain healthy.
+The service must let `BIND_ADDRESS` limit the published host interface, set memory, CPU, and process
+limits, use a read-only root filesystem, drop all Linux capabilities, and set `no-new-privileges`.
 
 ### FR-008 Request-Scoped MJML Options
 

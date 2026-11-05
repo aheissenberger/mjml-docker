@@ -32,6 +32,9 @@ Client → HTTP → mjml-docker container (node:26-trixie-slim, port 3000)
 ```
 
 Orchestrated via `compose.yaml` with health check and `restart: unless-stopped` policy.
+The service publishes its port on all host interfaces by default, and `BIND_ADDRESS` can limit it. The
+API has no TLS, so use it only in a trusted network or behind a TLS proxy. The service has resource
+limits, a read-only root filesystem, no Linux capabilities, and `no-new-privileges`.
 
 ## Ownership
 

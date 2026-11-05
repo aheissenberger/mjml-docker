@@ -22,6 +22,9 @@ Set configuration variables in `.env` (or export them in your shell):
 export API_KEY="your-secret-api-key" # required
 ```
 
+The server accepts any non-empty key. Use a strong key outside local development, for
+example from `openssl rand -hex 32`.
+
 ## Run
 
 ```bash
@@ -107,6 +110,18 @@ cp .env.example .env
 docker compose up --build
 ```
 
+`compose.yaml` publishes the port on all host interfaces by default. Set `BIND_ADDRESS` in `.env`
+to limit it, for example `BIND_ADDRESS=127.0.0.1`.
+
+**The API uses plain HTTP and has no TLS.** The API key and all MJML content travel unencrypted.
+Open the port only in a trusted network or behind a firewall, and note that ports published by
+Docker often bypass `ufw`. Use a TLS proxy on untrusted networks. All clients behind a proxy
+share one rate-limit bucket, because the server uses the socket address.
+
+The service runs with a read-only filesystem, no Linux capabilities, and
+`no-new-privileges`. Set `MEM_LIMIT`, `CPU_LIMIT`, and `PIDS_LIMIT` in `.env` to change the
+container limits (defaults: `1g`, `2`, `256`).
+
 #### Local Presets
 
 Development-style preset (fewer workers, shorter timeout):
@@ -137,6 +152,8 @@ RENDER_QUEUE_SIZE=128
 RENDER_TIMEOUT_MS=30000
 RATE_LIMIT_MAX_REQUESTS=240
 RATE_LIMIT_WINDOW_MS=60000
+MEM_LIMIT=2g
+CPU_LIMIT=4
 EOF
 docker compose up -d --build
 ```
